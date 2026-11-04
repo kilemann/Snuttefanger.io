@@ -4,7 +4,7 @@ import { cleanError } from '../main';
 import { formatTime } from '../format';
 
 const api = window.snutt;
-const QUALITIES: Quality[] = [2160, 1440, 1080, 720, 480];
+const QUALITIES: Exclude<Quality, 'best'>[] = [2160, 1440, 1080, 720, 480];
 const AUDIO: AudioFormat[] = ['mp3', 'm4a', 'opus', 'aac', 'flac', 'wav'];
 
 export function DownloadView({ settings, onQueued }: { settings: Settings; onQueued(): void }) {
