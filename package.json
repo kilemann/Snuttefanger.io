@@ -1,0 +1,29 @@
+{
+  "name": "snuttefanger",
+  "productName": "Snuttefanger",
+  "version": "0.1.0",
+  "description": "Last ned video og lyd, og klipp snutter tapsfritt.",
+  "author": "kilemann",
+  "license": "MIT",
+  "private": true,
+  "main": "dist/main/index.js",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "typecheck": "tsc --noEmit",
+    "start": "npm run build && electron .",
+    "test": "node scripts/build.mjs && node --test dist/tests/unit.test.js",
+    "test:integration": "node scripts/build.mjs && node --test dist/tests/integration.test.js",
+    "dist": "npm run build && electron-builder --win portable"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "electron": "45.2.2",
+    "electron-builder": "^26.0.0",
+    "esbuild": "0.28.2",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
+    "typescript": "6.0.3"
+  }
+}

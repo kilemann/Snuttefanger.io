@@ -1,0 +1,14 @@
+appId: io.github.kilemann.snuttefanger
+productName: Snuttefanger
+directories:
+  output: release
+files:
+  - dist/main/**
+  - dist/preload/**
+  - dist/renderer/**
+  - package.json
+win:
+  icon: build/icon.png
+  target: portable
+portable:
+  artifactName: Snuttefanger-${version}-portable.exe

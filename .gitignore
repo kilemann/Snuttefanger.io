@@ -1,0 +1,14 @@
+node_modules
+dist/
+release/
+*.log
+# Aldri i Git: cookies, testmedia og lokale verktøy
+cookies*.txt
+*.mp4
+*.mkv
+*.webm
+*.avi
+*.mp3
+*.flac
+*.wav
+bin/

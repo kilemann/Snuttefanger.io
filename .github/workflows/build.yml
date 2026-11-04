@@ -1,0 +1,38 @@
+name: Bygg og test
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+    paths-ignore: ['index.html', '**.md']
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install
+      - run: npm run typecheck
+      - run: npm test
+      - run: node --test --test-timeout=900000 dist/tests/integration.test.js
+      - run: npm run dist
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Snuttefanger-portable
+          path: release/*.exe
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        with:
+          name: package-lock
+          path: package-lock.json
+      - name: Publiser release
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" release/*.exe --title "Snuttefanger $GITHUB_REF_NAME" --notes "Se CHANGELOG.md."
