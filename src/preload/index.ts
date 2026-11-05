@@ -18,7 +18,7 @@ const api: SnuttApi = {
   fetchUrlInfo: call('url:info'), startDownload: call('download:start'),
   pickMedia: call('media:pick'), openMedia: call('media:open'),
   pathForFile: (file) => webUtils.getPathForFile(file),
-  startCut: call('cut:start'),
+  startCuts: call('cut:start'),
   getJobs: call('jobs:get'), pauseJob: call('job:pause'), resumeJob: call('job:resume'),
   cancelJob: call('job:cancel'), retryJob: call('job:retry'), removeJob: call('job:remove'),
   showInFolder: call('shell:show'),

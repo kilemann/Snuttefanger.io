@@ -50,8 +50,9 @@ Appskall, kø, innstillinger, verktøyinstallasjon, nedlasting av enkeltvideoer,
 
 **Godkjent når:** en URL kan lastes ned, åpnes i klipperen og eksporteres. En lokal fil kan klippes uten URL. Pause og fortsett virker på Windows.
 
-### Fase 2: klipper (v0.2)
-Tidslinje med zoom, flere segmenter, lydutdrag, eksport av bare video eller bare lyd, og forhåndsvisning av formater Chromium ikke støtter.
+### Fase 2: klipper (v0.2 og videre)
+Ferdig i v0.2.0: opptil 10 klipp fra samme fil, som egne filer. Gjenstår:
+Tidslinje med zoom, lydutdrag, eksport av bare video eller bare lyd, og forhåndsvisning av formater Chromium ikke støtter.
 
 ### Fase 3: presisjon (v0.3)
 Bølgeform, presis modus med full omkoding, sammenslåing med kompatibilitetskontroll og bedre eksportvalg. Smart cut vurderes etterpå.

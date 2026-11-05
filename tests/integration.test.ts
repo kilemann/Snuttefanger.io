@@ -82,6 +82,37 @@ test('tapsfri klipping lander på keyframe, bevarer kodek og lar originalen vær
   assert.equal(statSync(bigFile).size, before);
 });
 
+test('klipp starter på 0 i alle formater, også med omslagsbilde', async () => {
+  const dir = join(work, 'formater');
+  mkdirSync(dir);
+  const cover = join(dir, 'omslag.png');
+  await ffmpeg('-f', 'lavfi', '-i', 'testsrc2=size=64x64:rate=1', '-frames:v', '1', cover);
+  const a = join(dir, 'a');
+  const coverArgs = (out: string, audio: string) => [...['-i', bigFile, '-i', cover, '-map', '0:a', '-map', '1', '-c:a', audio, '-c:v', 'copy', '-disposition:v', 'attached_pic'], out];
+  await ffmpeg('-i', bigFile, '-i', cover, '-map', '0', '-map', '1', '-c', 'copy', '-disposition:v:1', 'attached_pic', `${a}-omslag.mp4`);
+  await ffmpeg('-i', bigFile, '-i', cover, '-map', '0:v', '-map', '0:a', '-map', '1', '-c', 'copy', `-attach`, cover, '-metadata:s:t', 'mimetype=image/png', '-map', '-1:v', `${a}.mkv`);
+  await ffmpeg(...coverArgs(`${a}.mp3`, 'libmp3lame'));
+  await ffmpeg(...coverArgs(`${a}.flac`, 'flac'));
+  await ffmpeg(...coverArgs(`${a}.m4a`, 'aac'));
+  await ffmpeg('-i', bigFile, '-map', '0:a', '-c:a', 'pcm_s16le', `${a}.wav`);
+  await ffmpeg('-i', bigFile, '-map', '0:a', '-c:a', 'libopus', `${a}.opus`);
+  await ffmpeg('-i', bigFile, '-c:v', 'libvpx-vp9', '-b:v', '200k', '-cpu-used', '8', '-deadline', 'realtime', '-g', '125', '-c:a', 'libopus', `${a}.webm`);
+  for (const name of ['a-omslag.mp4', 'a.mkv', 'a.mp3', 'a.flac', 'a.m4a', 'a.wav', 'a.opus', 'a.webm']) {
+    const input = join(dir, name);
+    const queue = new JobQueue(() => {});
+    queue.register('export', new CutRunner({ ffmpeg: () => bin.require('ffmpeg'), ffprobe: () => bin.require('ffprobe'), exportDir: () => join(dir) }));
+    queue.enqueue('export', 'k', { input, startSeconds: 7, endSeconds: 15 });
+    const job = await waitFor(queue, (j) => ['done', 'failed'].includes(j.status));
+    assert.equal(job.status, 'done', `${name}: ${job.error}`);
+    const out = await probeMedia(bin.require('ffprobe'), job.outputPath!);
+    assert.ok(out.startSeconds < 0.25, `${name} starter på ${out.startSeconds}`);
+    assert.ok(out.durationSeconds >= 7.5 && out.durationSeconds < 11, `${name} varer ${out.durationSeconds}`);
+    const src = await probeMedia(bin.require('ffprobe'), input);
+    assert.equal(out.streams.some((s) => s.attachedPic), !name.endsWith('.mkv') && src.streams.some((s) => s.attachedPic), `${name} omslag`);
+    assert.equal(out.streams.filter((s) => s.type === 'video').length, src.streams.filter((s) => s.type === 'video').length, `${name} videospor`);
+  }
+});
+
 function deps(tempRoot: string): DownloaderDeps {
   return {
     ytDlp: () => bin.require('ytDlp'),

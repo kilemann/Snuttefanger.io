@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import type { Job, OpenedMedia, Settings, SnuttApi } from '../shared/types';
 import { DownloadView } from './views/DownloadView';
 import { EditorView } from './views/EditorView';
+import { InfoDialog } from './views/InfoDialog';
 import { QueueView } from './views/QueueView';
 import { SettingsView } from './views/SettingsView';
 
@@ -22,6 +23,7 @@ function App() {
   const [media, setMedia] = useState<OpenedMedia | null>(null);
   const [mediaError, setMediaError] = useState<string | null>(null);
   const [toolsMissing, setToolsMissing] = useState(false);
+  const [infoOpen, setInfoOpen] = useState(false);
 
   const refreshTools = async () => {
     const tools = await api.getTools();
@@ -48,13 +50,16 @@ function App() {
   return (
     <div className="app">
       <nav className="side" aria-label="Hovedmeny">
-        <div className="brand">Snuttefanger</div>
+        <div className="brand-row">
+          <div className="brand">Snuttefanger</div>
+          <div className="ver">v{api.version}</div>
+          <button className="infobtn" aria-label="Om appen og hjelp" title="Om appen og hjelp" onClick={() => setInfoOpen(true)}>i</button>
+        </div>
         {NAV.map((n) => (
           <button key={n.id} aria-current={view === n.id ? 'page' : undefined} onClick={() => setView(n.id)}>
             {n.label}{n.id === 'queue' && active > 0 && <span className="count">{active}</span>}
           </button>
         ))}
-        <div className="version">Versjon {api.version}</div>
       </nav>
       <main className="main">
         {toolsMissing && view !== 'settings' && (
@@ -68,6 +73,7 @@ function App() {
         {view === 'queue' && <QueueView jobs={jobs} onOpen={openMedia} />}
         {view === 'settings' && <SettingsView settings={settings} onChange={setSettings} onToolsChanged={refreshTools} />}
       </main>
+      {infoOpen && <InfoDialog version={api.version} onClose={() => setInfoOpen(false)} />}
     </div>
   );
 }

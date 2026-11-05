@@ -53,19 +53,38 @@ const assert = require('node:assert/strict');
   assert.ok(seeked.t > 12 && seeked.w === 1280 && seeked.d > 19, JSON.stringify(seeked));
 
   // Klipp med hurtigtaster og tekstfelt
-  await page.getByRole('textbox', { name: 'Start' }).fill('00:00:04');
-  await page.getByRole('textbox', { name: 'Slutt' }).fill('00:00:09.5');
-  await page.getByRole('textbox', { name: 'Slutt' }).press('Enter');
+  await page.getByLabel('Antall klipp').selectOption('3');
+  const setClip = async (n, a, b) => {
+    await page.getByRole('textbox', { name: `Start klipp ${n}` }).fill(a);
+    await page.getByRole('textbox', { name: `Start klipp ${n}` }).press('Enter');
+    await page.getByRole('textbox', { name: `Slutt klipp ${n}` }).fill(b);
+    await page.getByRole('textbox', { name: `Slutt klipp ${n}` }).press('Enter');
+  };
+  await setClip(1, '00:00:02', '00:00:05');
+  await setClip(2, '00:00:06', '00:00:09.5');
+  await setClip(3, '00:00:12', '00:00:18');
   await page.locator('h1').first().click();
   await page.keyboard.press('ArrowRight');
   await page.waitForTimeout(300);
   await page.screenshot({ path: join(shots, '3-klipp.png') });
-  await page.getByRole('button', { name: 'Eksporter klipp' }).click();
-  await page.locator('.job[data-status=done]', { hasText: 'Klipp av' }).waitFor({ timeout: 30000 });
-  await page.waitForTimeout(200);
+
+  // Infoknappen
+  await page.getByRole('button', { name: 'Om appen og hjelp' }).click();
+  await page.getByRole('heading', { name: 'Om Snuttefanger' }).waitFor();
+  await page.keyboard.press('i');
+  await page.screenshot({ path: join(shots, '6-info.png') });
+  await page.keyboard.press('Escape');
+  await page.locator('dialog').waitFor({ state: 'detached' });
+
+  await page.getByRole('button', { name: 'Eksporter 3 klipp' }).click();
+  await page.waitForFunction(() => document.querySelectorAll('.job[data-status=done]').length === 4, null, { timeout: 40000 });
   await page.screenshot({ path: join(shots, '4-klipp-ferdig.png') });
-  const made = readdirSync(join(root, 'ned')).filter((f) => f.includes('klipp 00.00.04-00.00.09'));
-  assert.equal(made.length, 1, readdirSync(join(root, 'ned')).join());
+  const made = readdirSync(join(root, 'ned')).filter((f) => f.includes('(klipp '));
+  assert.equal(made.length, 3, readdirSync(join(root, 'ned')).join());
+  for (const f of made) {
+    const out = execFileSync(join(binDir, 'ffprobe'), ['-v', 'error', '-show_entries', 'format=start_time', '-of', 'csv=p=0', join(root, 'ned', f)]).toString();
+    assert.ok(Number(out) < 0.25, `${f} starter på ${out}`);
+  }
 
   // Åpne en lokal fil direkte, uten nedlasting
   await app.evaluate(({ dialog }, p) => { dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [p] }); }, file);

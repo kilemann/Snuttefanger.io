@@ -9,21 +9,23 @@ function describe(s: MediaStream): string {
   if (s.type === 'video') return `Video: ${s.codec}, ${s.width}x${s.height}${s.frameRate ? `, ${s.frameRate.toFixed(2).replace('.00', '')} bilder/s` : ''}`;
   if (s.type === 'audio') return `Lyd: ${s.codec}${s.channels ? `, ${s.channels} kanaler` : ''}${s.sampleRate ? `, ${s.sampleRate} Hz` : ''}`;
   if (s.type === 'subtitle') return `Undertekst: ${s.codec}`;
+  if (s.attachedPic) return `Omslagsbilde: ${s.codec}`;
   return `Annet: ${s.codec}`;
 }
 
-function TimeField({ label, value, onCommit }: { label: string; value: number; onCommit(v: number): void }) {
+const MAX_CLIPS = 10;
+interface Clip { start: number; end: number; }
+
+function TimeField({ label, value, onCommit, onFocus }: { label: string; value: number; onCommit(v: number): void; onFocus(): void }) {
   const [text, setText] = useState(formatTime(value));
   useEffect(() => setText(formatTime(value)), [value]);
   const commit = () => {
     const t = parseTime(text);
-    if (t === null) setText(formatTime(value)); else onCommit(t);
+    if (t === null) setText(formatTime(value)); else { onCommit(t); setText(formatTime(value)); }
   };
   return (
-    <label className="field">{label}
-      <input type="text" value={text} onChange={(e) => setText(e.target.value)} onBlur={commit}
-        onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); e.stopPropagation(); }} />
-    </label>
+    <input type="text" aria-label={label} value={text} onFocus={onFocus} onChange={(e) => setText(e.target.value)} onBlur={commit}
+      onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); e.stopPropagation(); }} />
   );
 }
 
@@ -69,8 +71,10 @@ function Cutter({ media, onQueued }: { media: OpenedMedia; onQueued(): void }) {
   const ref = useRef<HTMLVideoElement>(null);
   const stripRef = useRef<HTMLDivElement>(null);
   const [time, setTime] = useState(0);
-  const [start, setStart] = useState(0);
-  const [end, setEnd] = useState(duration);
+  // Klipp over valgt antall beholdes, så de kommer tilbake hvis antallet settes opp igjen.
+  const [clips, setClips] = useState<Clip[]>([{ start: 0, end: duration }]);
+  const [count, setCount] = useState(1);
+  const [active, setActive] = useState(0);
   const [playing, setPlaying] = useState(false);
   const [unplayable, setUnplayable] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -81,30 +85,47 @@ function Cutter({ media, onQueued }: { media: OpenedMedia; onQueued(): void }) {
     setTime(c);
     if (ref.current) ref.current.currentTime = c;
   }, [clamp]);
-  const setIn = useCallback((t: number) => setStart(Math.min(clamp(t), end - 0.01)), [clamp, end]);
-  const setOut = useCallback((t: number) => setEnd(Math.max(clamp(t), start + 0.01)), [clamp, start]);
+  const setIn = useCallback((i: number, t: number) => setClips((all) => all.map((c, n) => n === i ? { ...c, start: Math.min(clamp(t), c.end - 0.01) } : c)), [clamp]);
+  const setOut = useCallback((i: number, t: number) => setClips((all) => all.map((c, n) => n === i ? { ...c, end: Math.max(clamp(t), c.start + 0.01) } : c)), [clamp]);
   const toggle = useCallback(() => {
     const v = ref.current;
     if (!v || unplayable) return;
     if (v.paused) void v.play().catch(() => setUnplayable(true)); else v.pause();
   }, [unplayable]);
 
+  const changeCount = (next: number) => {
+    setClips((all) => {
+      const out = [...all];
+      while (out.length < next) {
+        const start = Math.min(time, Math.max(0, duration - 1));
+        out.push({ start, end: duration });
+      }
+      return out;
+    });
+    setCount(next);
+    setActive((a) => Math.min(a, next - 1));
+  };
+  const selectClip = (i: number) => { setActive(i); seek(clips[i].start); };
+  const visible = clips.slice(0, count);
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLSelectElement) return;
+      if (document.querySelector('dialog[open]')) return;
+      if (e.target instanceof HTMLInputElement && e.target.type === 'text') return;
+      if (e.target instanceof HTMLSelectElement) return;
       const t = ref.current?.currentTime ?? time;
       if (e.key === ' ') {
         if (e.target instanceof HTMLButtonElement) return; // Mellomrom trykker på knappen som har fokus.
         e.preventDefault(); toggle();
       }
-      else if (e.key === 'i' || e.key === 'I') setIn(t);
-      else if (e.key === 'o' || e.key === 'O') setOut(t);
-      else if (e.key === 'ArrowLeft') seek(t - (e.shiftKey ? 10 : 1));
-      else if (e.key === 'ArrowRight') seek(t + (e.shiftKey ? 10 : 1));
+      else if (e.key === 'i' || e.key === 'I') setIn(active, t);
+      else if (e.key === 'o' || e.key === 'O') setOut(active, t);
+      else if (e.key === 'ArrowLeft') { e.preventDefault(); seek(t - (e.shiftKey ? 10 : 1)); }
+      else if (e.key === 'ArrowRight') { e.preventDefault(); seek(t + (e.shiftKey ? 10 : 1)); }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [time, toggle, setIn, setOut, seek]);
+  }, [time, active, toggle, setIn, setOut, seek]);
 
   const fromPointer = (clientX: number) => {
     const r = stripRef.current!.getBoundingClientRect();
@@ -120,10 +141,12 @@ function Cutter({ media, onQueued }: { media: OpenedMedia; onQueued(): void }) {
   };
   const pct = (t: number) => `${(t / duration) * 100}%`;
 
-  const exportCut = async () => {
+  const exportCuts = async () => {
     setError(null);
-    try { await api.startCut({ input: media.path, startSeconds: start, endSeconds: end }); onQueued(); }
-    catch (e) { setError(cleanError(e)); }
+    try {
+      await api.startCuts({ input: media.path, clips: visible.map((c) => ({ startSeconds: c.start, endSeconds: c.end })) });
+      onQueued();
+    } catch (e) { setError(cleanError(e)); }
   };
 
   return (
@@ -139,28 +162,47 @@ function Cutter({ media, onQueued }: { media: OpenedMedia; onQueued(): void }) {
         )}
       </div>
       <div className="strip" ref={stripRef} onPointerDown={drag(seek)} aria-label="Klippestripe">
-        <div className="strip-sel" style={{ left: pct(start), width: `calc(${pct(end)} - ${pct(start)})` }} />
-        <div className="strip-head" style={{ left: pct(time) }} />
-        <button className="strip-handle" style={{ left: pct(start) }} aria-label="Dra start" onPointerDown={drag(setIn)} />
-        <button className="strip-handle" style={{ left: pct(end) }} aria-label="Dra slutt" onPointerDown={drag(setOut)} />
+        {visible.map((c, i) => (
+          <div key={i} className={`strip-sel ${i === active ? 'active' : ''}`} style={{ left: pct(c.start), width: `calc(${pct(c.end)} - ${pct(c.start)})`, zIndex: i === active ? 2 : 1 }}>
+            {count > 1 ? i + 1 : ''}
+          </div>
+        ))}
+        <div className="strip-head" style={{ left: pct(time), zIndex: 3 }} />
+        <button className="strip-handle" style={{ left: pct(clips[active].start), zIndex: 4 }} aria-label="Dra start" onPointerDown={drag((t) => setIn(active, t))} />
+        <button className="strip-handle" style={{ left: pct(clips[active].end), zIndex: 4 }} aria-label="Dra slutt" onPointerDown={drag((t) => setOut(active, t))} />
       </div>
       <div className="controls">
         <button className="btn" onClick={toggle} disabled={unplayable}>{playing ? 'Pause' : 'Spill av'}</button>
         <div className="num" aria-label="Avspillingstid">{formatTime(time)} av {formatTime(duration)}</div>
-      </div>
-      <div className="controls end">
-        <button className="btn" onClick={() => setIn(time)}>Sett start her</button>
-        <TimeField label="Start" value={start} onCommit={setIn} />
-        <TimeField label="Slutt" value={end} onCommit={setOut} />
-        <button className="btn" onClick={() => setOut(time)}>Sett slutt her</button>
         <div className="grow" />
-        <button className="btn primary" onClick={exportCut}>Eksporter klipp</button>
+        <label className="row small">Antall klipp
+          <select aria-label="Antall klipp" value={count} onChange={(e) => changeCount(Number(e.target.value))}>
+            {Array.from({ length: MAX_CLIPS }, (_, i) => <option key={i + 1} value={i + 1}>{i + 1}</option>)}
+          </select>
+        </label>
+        <button className="btn primary" onClick={exportCuts}>{count === 1 ? 'Eksporter klipp' : `Eksporter ${count} klipp`}</button>
       </div>
       {error && <p className="error" role="alert">{error}</p>}
+      <div className="clips">
+        <div /><div /><div className="clips-head">Start</div><div className="clips-head">Slutt</div><div /><div className="clips-head">Lengde</div>
+        {visible.map((c, i) => (
+          <div className={`clip-row ${i === active ? 'active' : ''}`} key={i} data-clip={i + 1}>
+            <label className="clip-name">
+              <input type="radio" name="aktivt-klipp" checked={i === active} onChange={() => selectClip(i)} />
+              Klipp {i + 1}
+            </label>
+            <button className="btn" onClick={() => { setActive(i); setIn(i, time); }}>Sett start her</button>
+            <TimeField label={`Start klipp ${i + 1}`} value={c.start} onFocus={() => setActive(i)} onCommit={(t) => setIn(i, t)} />
+            <TimeField label={`Slutt klipp ${i + 1}`} value={c.end} onFocus={() => setActive(i)} onCommit={(t) => setOut(i, t)} />
+            <button className="btn" onClick={() => { setActive(i); setOut(i, time); }}>Sett slutt her</button>
+            <div className="num small muted">{formatTime(c.end - c.start)}</div>
+          </div>
+        ))}
+      </div>
       <p className="muted small">
-        Valgt lengde {formatTime(end - start)}. Eksporten er tapsfri og originalfilen endres ikke. Klippet starter på nærmeste keyframe før valgt start, så det kan bli litt lengre enn valgt.
+        Hvert klipp blir en egen fil som starter på 0. Video og lyd kopieres uten kvalitetstap, og originalfilen endres ikke. Videoklipp starter på nærmeste keyframe før valgt start, så de kan bli litt lengre enn valgt.
       </p>
-      <p className="muted small">Hurtigtaster: <kbd>Mellomrom</kbd> spill av, <kbd>I</kbd> start, <kbd>O</kbd> slutt, <kbd>←</kbd> <kbd>→</kbd> ett sekund, med <kbd>Shift</kbd> ti sekunder.</p>
+      <p className="muted small">Hurtigtaster for valgt klipp: <kbd>I</kbd> start, <kbd>O</kbd> slutt. Avspilling: <kbd>Mellomrom</kbd> spill av, <kbd>←</kbd> <kbd>→</kbd> ett sekund, med <kbd>Shift</kbd> ti sekunder.</p>
       <div className="section">
         <h2>Om filen</h2>
         <ul className="streams small muted">

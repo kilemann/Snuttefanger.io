@@ -43,7 +43,9 @@ export interface UrlInfo {
 }
 
 export interface MediaStream {
+  index: number;
   type: 'video' | 'audio' | 'subtitle' | 'other';
+  attachedPic: boolean;
   codec: string;
   width?: number;
   height?: number;
@@ -57,6 +59,7 @@ export interface MediaInfo {
   fileName: string;
   sizeBytes: number;
   durationSeconds: number;
+  startSeconds: number;
   formatName: string;
   bitrate: number | null;
   streams: MediaStream[];
@@ -70,6 +73,11 @@ export interface CutRequest {
   input: string;
   startSeconds: number;
   endSeconds: number;
+}
+
+export interface CutBatch {
+  input: string;
+  clips: { startSeconds: number; endSeconds: number }[];
 }
 
 export interface Settings {
@@ -116,7 +124,7 @@ export interface SnuttApi {
   pickMedia(): Promise<string | null>;
   openMedia(path: string): Promise<OpenedMedia>;
   pathForFile(file: File): string;
-  startCut(request: CutRequest): Promise<void>;
+  startCuts(batch: CutBatch): Promise<void>;
   getJobs(): Promise<Job[]>;
   pauseJob(id: string): Promise<void>;
   resumeJob(id: string): Promise<void>;

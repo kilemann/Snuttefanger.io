@@ -1,11 +1,11 @@
 import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron';
 import { mkdirSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
-import type { CutRequest, DownloadRequest, InstallState, Job, Settings, ToolName } from '../shared/types';
+import type { CutBatch, CutRequest, DownloadRequest, InstallState, Job, Settings, ToolName } from '../shared/types';
 import { mediaSrc, registerMediaHandler, registerSchemePrivileges } from './protocol';
 import { BinaryManager } from './services/BinaryManager';
 import { DownloadRunner, assertHttpUrl, fetchUrlInfo, type DownloaderDeps } from './services/DownloaderService';
-import { CutRunner, validateCut } from './services/ExportService';
+import { CutRunner, MAX_CLIPS, validateCut } from './services/ExportService';
 import { JobQueue } from './services/JobQueue';
 import { probeMedia } from './services/MediaProbeService';
 import { stopAllProcesses } from './services/ProcessManager';
@@ -90,10 +90,19 @@ app.whenReady().then(() => {
     const info = await probeMedia(binaries.require('ffprobe'), path);
     return { ...info, src: mediaSrc(path) };
   });
-  ipcMain.handle('cut:start', async (_e, req: CutRequest) => {
-    const info = await probeMedia(binaries.require('ffprobe'), req.input);
-    validateCut(req.startSeconds, req.endSeconds, info.durationSeconds);
-    queue.enqueue('export', `Klipp av ${info.fileName}`, req);
+  ipcMain.handle('cut:start', async (_e, batch: CutBatch) => {
+    const info = await probeMedia(binaries.require('ffprobe'), batch.input);
+    const { clips } = batch;
+    if (clips.length < 1 || clips.length > MAX_CLIPS) throw new Error(`Velg mellom 1 og ${MAX_CLIPS} klipp.`);
+    // Alle klipp kontrolleres før noe legges i køen, så en feil ikke gir halve eksporter.
+    clips.forEach((c, i) => {
+      try { validateCut(c.startSeconds, c.endSeconds, info.durationSeconds); }
+      catch (e) { throw new Error(`Klipp ${i + 1}: ${(e as Error).message}`); }
+    });
+    clips.forEach((c, i) => {
+      const prefix = clips.length > 1 ? `Klipp ${i + 1} av ${clips.length}` : 'Klipp';
+      queue.enqueue('export', `${prefix} fra ${info.fileName}`, { input: batch.input, ...c } satisfies CutRequest);
+    });
   });
   ipcMain.handle('jobs:get', () => queue.list());
   ipcMain.handle('job:pause', (_e, id: string) => queue.pause(id));

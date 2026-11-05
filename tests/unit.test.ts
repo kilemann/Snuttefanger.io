@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { assetsFor, parseChecksum } from '../src/main/services/BinaryManager';
 import { assertHttpUrl, buildDownloadArgs, buildInfoArgs, extractError, parseInfoJson, parseProgressLine } from '../src/main/services/DownloaderService';
-import { buildCutArgs, parseOutTime, validateCut } from '../src/main/services/ExportService';
+import { buildCutArgs, cutOptions, parseOutTime, validateCut } from '../src/main/services/ExportService';
 import { JobQueue, type JobHandle } from '../src/main/services/JobQueue';
 import { parseProbe } from '../src/main/services/MediaProbeService';
 import { sanitizeSettings } from '../src/main/services/SettingsService';
@@ -59,6 +59,22 @@ test('klippekommando kopierer strømmer og overskriver aldri', () => {
   assert.throws(() => validateCut(5, 5, 10));
   assert.throws(() => validateCut(0, 20, 10));
   validateCut(0, 10, 10);
+});
+
+test('omslagsbilde hentes fra egen inngang, og FLAC kodes tapsfritt på nytt', () => {
+  const a = buildCutArgs('in.mp4', 1, 2, 'ut.mp4', { cover: { index: 2, outputVideoIndex: 1 } });
+  assert.equal(a.filter((x) => x === '-i').length, 2);
+  assert.ok(a.includes('1:2') && a.includes('0:V?') && !a.includes('0'.concat(':v?')));
+  assert.equal(a[a.indexOf('-disposition:v:1') + 1], 'attached_pic');
+  const plain = buildCutArgs('in.mp4', 1, 2, 'ut.mp4');
+  assert.equal(plain.filter((x) => x === '-i').length, 1);
+  const flac = buildCutArgs('in.flac', 1, 2, 'ut.flac', { encodeFlac: true });
+  assert.equal(flac[flac.indexOf('-c:a') + 1], 'flac');
+  const info = parseProbe(JSON.stringify({ format: { duration: '9' }, streams: [
+    { index: 0, codec_type: 'video', codec_name: 'av1' }, { index: 1, codec_type: 'audio', codec_name: 'opus' },
+    { index: 2, codec_type: 'video', codec_name: 'png', disposition: { attached_pic: 1 } },
+  ] }), '/m/a.mp4', 5);
+  assert.deepEqual(cutOptions(info), { cover: { index: 2, outputVideoIndex: 1 }, encodeFlac: false });
 });
 
 test('sjekksummer leses fra alle tre formatene', () => {

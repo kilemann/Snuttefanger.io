@@ -15,7 +15,7 @@ export function parseProbe(json: string, path: string, sizeBytes: number): Media
     const attached = s.disposition?.attached_pic === 1;
     const type = attached ? 'other' : (['video', 'audio', 'subtitle'].includes(s.codec_type) ? s.codec_type : 'other');
     return {
-      type, codec: s.codec_name ?? 'ukjent',
+      index: s.index, type, attachedPic: attached, codec: s.codec_name ?? 'ukjent',
       width: s.width, height: s.height, frameRate: type === 'video' ? parseRate(s.avg_frame_rate) : undefined,
       channels: s.channels, sampleRate: s.sample_rate ? Number(s.sample_rate) : undefined,
     };
@@ -24,6 +24,7 @@ export function parseProbe(json: string, path: string, sizeBytes: number): Media
   if (!Number.isFinite(duration) || duration <= 0) throw new Error('Filen har ingen lesbar varighet.');
   return {
     path, fileName: basename(path), sizeBytes, durationSeconds: duration,
+    startSeconds: Number(data.format?.start_time) || 0,
     formatName: data.format?.format_name ?? 'ukjent',
     bitrate: data.format?.bit_rate ? Number(data.format.bit_rate) : null,
     streams,
