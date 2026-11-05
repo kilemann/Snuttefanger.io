@@ -21,10 +21,16 @@ jobs:
       - run: npm test
       - run: node --test --test-timeout=900000 dist/tests/integration.test.js
       - run: npm run dist
+      - name: Test GUI-et i den pakkede appen
+        run: |
+          npm install --no-save playwright-core@1.63.0
+          node tests/e2e-win.cjs
       - uses: actions/upload-artifact@v4
         with:
           name: Snuttefanger-portable
-          path: release/*.exe
+          path: |
+            release/*.exe
+            release/*.png
           if-no-files-found: error
       - uses: actions/upload-artifact@v4
         with:
