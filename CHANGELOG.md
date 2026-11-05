@@ -2,6 +2,11 @@
 
 The project uses [semantic versioning](https://semver.org/).
 
+## 0.6.1 (2026-11-05)
+
+### Changed
+- Speed in Join is chosen for each file, so one file can play at 1x and the next at 1.25x. "Speed for all files" sets the same speed for every file at once.
+
 ## 0.6.0 (2026-11-05)
 
 ### Added

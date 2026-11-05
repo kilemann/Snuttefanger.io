@@ -36,15 +36,16 @@ function firstAudio(info: MediaInfo) {
 
 /** Alle effekter krever omkoding. Tittel, artist og omslag gjør det ikke. */
 export function hasEffects(e: JoinEffects = NO_EFFECTS): boolean {
-  return e.speed !== 1 || e.trimSilence || e.normalize || e.fadeIn > 0 || e.fadeOut > 0 || e.crossfade > 0;
+  return e.speeds.some((s) => s !== 1) || e.trimSilence || e.normalize || e.fadeIn > 0 || e.fadeOut > 0 || e.crossfade > 0;
 }
 
-export function sanitizeEffects(raw: Partial<JoinEffects> | undefined): JoinEffects {
+/** count: antall filer. Hastighetslisten får nøyaktig én gyldig verdi per fil. */
+export function sanitizeEffects(raw: Partial<JoinEffects> | undefined, count = 0): JoinEffects {
   const e = { ...NO_EFFECTS, ...(raw ?? {}) };
   const sec = (v: unknown, max: number) => (typeof v === 'number' && Number.isFinite(v) ? Math.min(max, Math.max(0, v)) : 0);
   const text = (v: unknown) => (typeof v === 'string' ? v.replace(/[\r\n]+/g, ' ').trim().slice(0, 200) : '');
   return {
-    speed: SPEEDS.includes(e.speed) ? e.speed : 1,
+    speeds: Array.from({ length: count }, (_, i) => (Array.isArray(e.speeds) && SPEEDS.includes(e.speeds[i]) ? e.speeds[i] : 1)),
     trimSilence: e.trimSilence === true, normalize: e.normalize === true,
     fadeIn: sec(e.fadeIn, 30), fadeOut: sec(e.fadeOut, 30), crossfade: sec(e.crossfade, 10),
     title: text(e.title), artist: text(e.artist), cover: e.cover !== false,
@@ -95,9 +96,18 @@ export function silenceArgs(path: string): string[] {
 }
 
 /** Lengden på resultatet, brukt til fade ut og fremdrift. */
+export function speedOf(effects: JoinEffects, i: number): number {
+  return effects.speeds[i] ?? 1;
+}
+
+/** Hver fil får sin hastighet før skjøting, så lengden er summen av (lengde / hastighet) minus krysstoningene. */
+export function playedLengths(spans: Span[], effects: JoinEffects): number[] {
+  return spans.map((x, i) => (x.end - x.start) / speedOf(effects, i));
+}
+
 export function outputLength(spans: Span[], effects: JoinEffects): number {
-  const sum = spans.reduce((s, x) => s + (x.end - x.start), 0);
-  return Math.max(0, (sum - effects.crossfade * (spans.length - 1)) / effects.speed);
+  const sum = playedLengths(spans, effects).reduce((s, x) => s + x, 0);
+  return Math.max(0, sum - effects.crossfade * (spans.length - 1));
 }
 
 const r3 = (n: number) => (Math.round(n * 1000) / 1000).toString();
@@ -107,7 +117,8 @@ export function buildJoinGraph(count: number, plan: JoinPlan, effects: JoinEffec
   const layout = plan.channels === 1 ? 'mono' : 'stereo';
   const prep = Array.from({ length: count }, (_, i) => {
     const trim = spans ? `atrim=start=${r3(spans[i].start)}:end=${r3(spans[i].end)},asetpts=PTS-STARTPTS,` : '';
-    return `[${i}:a:0]${trim}aresample=${plan.sampleRate},aformat=sample_rates=${plan.sampleRate}:channel_layouts=${layout}[a${i}]`;
+    const speed = speedOf(effects, i) !== 1 ? `atempo=${speedOf(effects, i)},` : '';
+    return `[${i}:a:0]${trim}${speed}aresample=${plan.sampleRate},aformat=sample_rates=${plan.sampleRate}:channel_layouts=${layout}[a${i}]`;
   });
   const parts = [...prep];
   let last: string;
@@ -122,7 +133,6 @@ export function buildJoinGraph(count: number, plan: JoinPlan, effects: JoinEffec
     last = 'j';
   }
   const post: string[] = [];
-  if (effects.speed !== 1) post.push(`atempo=${effects.speed}`);
   // loudnorm leverer 192 kHz, så den samples ned igjen etterpå.
   if (effects.normalize) post.push('loudnorm=I=-16:TP=-1.5:LRA=11', `aresample=${plan.sampleRate}`);
   const length = outputLength(spans ?? durations.map((d) => ({ start: 0, end: d })), effects);
@@ -185,7 +195,7 @@ export async function renderJoin(
   deps: JoinDeps, req: JoinRequest, chooseOutput: (ext: string) => Promise<string>,
   onProgress: (percent: number) => void, control: RenderControl,
 ): Promise<{ output: string; plan: JoinPlan; length: number }> {
-  const effects = sanitizeEffects(req.effects);
+  const effects = sanitizeEffects(req.effects, req.inputs.length);
   const infos = await Promise.all(req.inputs.map((p) => probeMedia(deps.ffprobe(), p)));
   const plan = joinPlan(infos, req.format, effects);
   const durations = infos.map((i) => i.durationSeconds);
@@ -206,7 +216,7 @@ export async function renderJoin(
   }
   const length = outputLength(spans ?? durations.map((d) => ({ start: 0, end: d })), effects);
   if (effects.crossfade > 0) {
-    const shortest = Math.min(...(spans ?? durations.map((d) => ({ start: 0, end: d }))).map((s) => s.end - s.start));
+    const shortest = Math.min(...playedLengths(spans ?? durations.map((d) => ({ start: 0, end: d })), effects));
     if (effects.crossfade >= shortest) throw new Error(msg('err.crossfadeTooLong', { s: Math.floor(shortest * 10) / 10 }));
   }
   const coverStream = effects.cover && COVER_EXT.includes(plan.ext)

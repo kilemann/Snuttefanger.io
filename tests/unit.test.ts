@@ -278,9 +278,10 @@ test('delt FFmpeg-bygg: DLL-ene følger med, men ikke ffplay', () => {
 test('effekter: bare lydendringer krever omkoding, og ugyldige verdier rettes', () => {
   assert.equal(hasEffects(NO_EFFECTS), false);
   assert.equal(hasEffects({ ...NO_EFFECTS, title: 'x', cover: false }), false);
-  assert.equal(hasEffects({ ...NO_EFFECTS, speed: 1.5 }), true);
-  const e = sanitizeEffects({ speed: 3, fadeIn: -2, fadeOut: 99, crossfade: Number.NaN, title: 'a\nb', trimSilence: 'ja' as never });
-  assert.deepEqual([e.speed, e.fadeIn, e.fadeOut, e.crossfade, e.title, e.trimSilence], [1, 0, 30, 0, 'a b', false]);
+  assert.equal(hasEffects({ ...NO_EFFECTS, speeds: [1, 1] }), false);
+  assert.equal(hasEffects({ ...NO_EFFECTS, speeds: [1, 1.25] }), true);
+  const e = sanitizeEffects({ speeds: [3, 1.25], fadeIn: -2, fadeOut: 99, crossfade: Number.NaN, title: 'a\nb', trimSilence: 'ja' as never }, 3);
+  assert.deepEqual([e.speeds, e.fadeIn, e.fadeOut, e.crossfade, e.title, e.trimSilence], [[1, 1.25, 1], 0, 30, 0, 'a b', false]);
   const opus = [audioInfo('/a.opus', 'opus'), audioInfo('/b.opus', 'opus')];
   assert.throws(() => joinPlan(opus, 'original', { ...NO_EFFECTS, normalize: true }), /joinEffectsOriginal/);
   assert.equal(joinPlan(opus, 'opus', { ...NO_EFFECTS, fadeIn: 1 }).method, 'encode', 'samme format, men effekt: må kodes om');
@@ -299,13 +300,17 @@ test('stillhet: start og slutt finnes, 0,1 s beholdes, og en helt stille fil beh
 
 test('effektgrafen: krysstoning, hastighet, utjevning og fade i riktig rekkefølge', () => {
   const plan = { ext: '.mp3', method: 'encode' as const, encode: ['-c:a', 'libmp3lame'], sampleRate: 44100, channels: 2 };
-  const fx = { ...NO_EFFECTS, speed: 2, normalize: true, fadeIn: 1, fadeOut: 2, crossfade: 1 };
+  const fx = { ...NO_EFFECTS, speeds: [2, 2, 2], normalize: true, fadeIn: 1, fadeOut: 2, crossfade: 1 };
   const g = buildJoinGraph(3, plan, fx, [{ start: 0.5, end: 4 }, { start: 0, end: 4 }, { start: 0, end: 4 }], [4, 4, 4]);
-  assert.match(g, /\[0:a:0\]atrim=start=0\.5:end=4,asetpts=PTS-STARTPTS,aresample=44100/);
+  assert.match(g, /\[0:a:0\]atrim=start=0\.5:end=4,asetpts=PTS-STARTPTS,atempo=2,aresample=44100/);
   assert.match(g, /\[a0\]\[a1\]acrossfade=d=1:c1=tri:c2=tri\[x1\];\[x1\]\[a2\]acrossfade=d=1/);
-  // (3,5 + 4 + 4 − 2 krysstoninger) / 2 = 4,75 s, så fade ut starter på 2,75.
-  assert.match(g, /\[x2\]atempo=2,loudnorm=I=-16:TP=-1\.5:LRA=11,aresample=44100,afade=t=in:st=0:d=1,afade=t=out:st=2\.75:d=2\[out\]$/);
-  assert.equal(outputLength([{ start: 0, end: 4 }, { start: 0, end: 4 }], { ...NO_EFFECTS, speed: 0.5 }), 16);
+  // 3,5/2 + 4/2 + 4/2 − 2 krysstoninger à 1 s = 3,75 s. Fade ut på 2 s kappes til halve lengden (1,875 s).
+  assert.match(g, /\[x2\]loudnorm=I=-16:TP=-1\.5:LRA=11,aresample=44100,afade=t=in:st=0:d=1,afade=t=out:st=1\.875:d=1\.875\[out\]$/);
+  assert.equal(outputLength([{ start: 0, end: 4 }, { start: 0, end: 4 }], { ...NO_EFFECTS, speeds: [0.5, 0.5] }), 16);
+  // Første fil i 1x og neste i 1,25x: 4 + 3,2 s.
+  assert.equal(outputLength([{ start: 0, end: 4 }, { start: 0, end: 4 }], { ...NO_EFFECTS, speeds: [1, 1.25] }), 7.2);
+  const mixedGraph = buildJoinGraph(2, plan, { ...NO_EFFECTS, speeds: [1, 1.25] }, null, [4, 4]);
+  assert.match(mixedGraph, /^\[0:a:0\]aresample=44100.*;\[1:a:0\]atempo=1\.25,aresample=44100/);
   const plain = buildJoinGraph(2, plan, NO_EFFECTS, null, [4, 4]);
   assert.match(plain, /concat=n=2:v=0:a=1\[j\];\[j\]anull\[out\]$/);
   const args = buildJoinArgs(['/a', '/b'], '/l', plan, '/o.mp3', { ...NO_EFFECTS, title: 'Min mix', artist: 'Meg' }, null, [4, 4], { path: '/a', index: 1 });

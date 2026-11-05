@@ -215,7 +215,8 @@ test('skjøt med effekter: stillhet fjernes, hastighet og krysstoning gir riktig
   const near = (v: number, want: number, tol: number, what: string) => assert.ok(Math.abs(v - want) < tol, `${what}: ${v}, ventet ${want}`);
 
   near((await run([a, b], { ...NO_EFFECTS, trimSilence: true })).out.durationSeconds, 4.4, 0.15, 'stillhet fjernet');
-  near((await run([a, b], { ...NO_EFFECTS, speed: 2 })).out.durationSeconds, 4, 0.15, 'dobbel hastighet');
+  near((await run([a, b], { ...NO_EFFECTS, speeds: [2, 2] })).out.durationSeconds, 4, 0.15, 'dobbel hastighet');
+  near((await run([a, b], { ...NO_EFFECTS, speeds: [1, 1.25] })).out.durationSeconds, 7.2, 0.15, '1x og 1,25x');
   near((await run([a, b], { ...NO_EFFECTS, crossfade: 1, fadeIn: 1, fadeOut: 1, normalize: true })).out.durationSeconds, 7, 0.15, 'krysstoning');
   const tagged = await run([cover, a], { ...NO_EFFECTS, title: 'Min mix æøå', artist: 'Kilemann' });
   near(tagged.out.durationSeconds, 34, 0.2, 'med omslag');

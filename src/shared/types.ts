@@ -88,8 +88,8 @@ export interface CutRequest {
 }
 
 export interface JoinEffects {
-  /** Avspillingshastighet uten endret tonehøyde, 0.5–2. */
-  speed: number;
+  /** Avspillingshastighet per fil, uten endret tonehøyde, 0.5–2. Mangler en verdi, brukes 1. */
+  speeds: number[];
   /** Fjerner stillhet i starten og slutten av hver fil. */
   trimSilence: boolean;
   /** Utjevner lydnivået (EBU R128). */
@@ -103,7 +103,7 @@ export interface JoinEffects {
   cover: boolean;
 }
 
-export const NO_EFFECTS: JoinEffects = { speed: 1, trimSilence: false, normalize: false, fadeIn: 0, fadeOut: 0, crossfade: 0, title: '', artist: '', cover: true };
+export const NO_EFFECTS: JoinEffects = { speeds: [], trimSilence: false, normalize: false, fadeIn: 0, fadeOut: 0, crossfade: 0, title: '', artist: '', cover: true };
 
 export interface JoinRequest {
   inputs: string[];

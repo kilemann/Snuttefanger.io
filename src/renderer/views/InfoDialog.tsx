@@ -28,6 +28,7 @@ const CONTENT: Record<Language, Content> = {
         'Add files under Join, or select Add to Join on finished audio clips in the queue.',
         'Put the files in order with the arrows, choose the audio format and select Join.',
         'Files with the same format are joined without re-encoding. Otherwise they are re-encoded to the format you choose.',
+        'Choose the speed for each file next to it in the list, or for all files at once under Effects.',
         'Effects: speed, remove silence, even out the volume, fade and crossfade. Effects always need re-encoding.',
         'Select Listen to the result to hear the result before you export it.',
       ]],
@@ -47,6 +48,7 @@ const CONTENT: Record<Language, Content> = {
     ],
     versionsTitle: 'Versions',
     versions: [
+      ['v0.6.1', 'Speed in Join is chosen for each file.'],
       ['v0.6.0', 'Waveform with zoom and snap to silence. Clips are remembered. Join effects, title and artist, and listening before export. Smaller FFmpeg.'],
       ['v0.5.0', 'New Join menu: join audio files into one, without re-encoding when the formats match.'],
       ['v0.4.0', 'Choose the audio format for each audio clip: Original, MP3, M4A, Opus, FLAC or WAV.'],
@@ -78,6 +80,7 @@ const CONTENT: Record<Language, Content> = {
         'Legg til filer under Skjøt, eller velg Legg til i Skjøt på ferdige lydklipp i køen.',
         'Sett filene i rekkefølge med pilene, velg lydformat og velg Skjøt.',
         'Filer med samme format skjøtes uten omkoding. Ellers kodes de om til formatet du velger.',
+        'Velg hastighet for hver fil ved siden av den i listen, eller for alle filene samtidig under Effekter.',
         'Effekter: hastighet, fjern stillhet, utjevn lydnivå, fade og krysstoning. Effekter krever alltid omkoding.',
         'Velg Lytt til resultatet for å høre resultatet før du eksporterer.',
       ]],
@@ -97,6 +100,7 @@ const CONTENT: Record<Language, Content> = {
     ],
     versionsTitle: 'Versjoner',
     versions: [
+      ['v0.6.1', 'Hastighet i Skjøt velges for hver fil.'],
       ['v0.6.0', 'Bølgeform med zoom og fest til stillhet. Klippene huskes. Effekter, tittel og artist, og lytting før eksport i Skjøt. Mindre FFmpeg.'],
       ['v0.5.0', 'Ny Skjøt-meny: skjøt lydfiler til én fil, uten omkoding når formatene er like.'],
       ['v0.4.0', 'Velg lydformat for hvert lydklipp: Original, MP3, M4A, Opus, FLAC eller WAV.'],

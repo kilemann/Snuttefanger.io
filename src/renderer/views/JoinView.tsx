@@ -10,7 +10,7 @@ const SPEEDS = [0.5, 0.75, 1, 1.25, 1.5, 2];
 const FADES = [0, 0.5, 1, 2, 3, 5];
 const CROSSFADES = [0, 0.5, 1, 2, 3];
 
-export interface JoinItem { path: string; info?: MediaInfo; error?: string }
+export interface JoinItem { path: string; info?: MediaInfo; error?: string; speed?: number }
 
 export interface JoinState { items: JoinItem[]; format: AudioTarget | null; effects: JoinEffects }
 
@@ -21,11 +21,14 @@ function describeAudio(info: MediaInfo): string {
   return [a.codec.toUpperCase(), a.sampleRate ? `${(a.sampleRate / 1000).toFixed(1).replace(/\.0$/, '')} kHz` : null, a.channels ? ch : null].filter(Boolean).join(', ');
 }
 
-const effectsOn = (e: JoinEffects) => e.speed !== 1 || e.trimSilence || e.normalize || e.fadeIn > 0 || e.fadeOut > 0 || e.crossfade > 0;
+const effectsOn = (e: JoinEffects) => e.speeds.some((s) => s !== 1) || e.trimSilence || e.normalize || e.fadeIn > 0 || e.fadeOut > 0 || e.crossfade > 0;
 const speedLabel = (s: number) => `${getLanguage() === 'nb' ? String(s).replace('.', ',') : String(s)}x`;
 
 export function JoinView({ state, setState, onQueued }: { state: JoinState; setState(f: (old: JoinState) => JoinState): void; onQueued(): void }) {
-  const { items, effects } = state;
+  const { items } = state;
+  // Hastigheten ligger på hver fil, så den følger med når rekkefølgen endres.
+  const effects: JoinEffects = { ...state.effects, speeds: items.map((it) => it.speed ?? 1) };
+  const setSpeed = (i: number, speed: number) => setItems((old) => old.map((it, n) => (n === i ? { ...it, speed } : it)));
   const [over, setOver] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [preview, setPreview] = useState<{ result: PreviewResult; key: string } | null>(null);
@@ -63,7 +66,8 @@ export function JoinView({ state, setState, onQueued }: { state: JoinState; setS
   // Standard: Original når filene passer sammen og ingen effekter er på, ellers MP3. Brukerens eget valg vinner når det er lov.
   const chosen: AudioTarget = state.format && (state.format !== 'original' || originalAllowed) ? state.format : (originalAllowed ? 'original' : 'mp3');
   const sum = infos.reduce((s, i) => s + i.durationSeconds, 0);
-  const estimate = Math.max(0, (sum - effects.crossfade * Math.max(0, infos.length - 1)) / effects.speed);
+  const played = items.reduce((s, it) => s + (it.info ? it.info.durationSeconds / (it.speed ?? 1) : 0), 0);
+  const estimate = Math.max(0, played - effects.crossfade * Math.max(0, infos.length - 1));
   const request: JoinRequest = { inputs: items.map((it) => it.path), format: chosen, effects };
   const key = JSON.stringify(request);
   const stale = preview !== null && preview.key !== key;
@@ -105,6 +109,10 @@ export function JoinView({ state, setState, onQueued }: { state: JoinState; setS
                     {it.error ?? (it.info ? `${formatTime(it.info.durationSeconds)}, ${describeAudio(it.info)}` : t('join.reading'))}
                   </div>
                 </div>
+                <select className="join-speed" aria-label={t('join.speedN', { n: String(i + 1) })} title={t('join.speedN', { n: String(i + 1) })}
+                  value={it.speed ?? 1} onChange={(e) => setSpeed(i, Number(e.target.value))}>
+                  {SPEEDS.map((sp) => <option key={sp} value={sp}>{speedLabel(sp)}</option>)}
+                </select>
                 <button className="btn" aria-label={`${t('join.up')} ${i + 1}`} title={t('join.up')} disabled={i === 0} onClick={() => move(i, -1)}>↑</button>
                 <button className="btn" aria-label={`${t('join.down')} ${i + 1}`} title={t('join.down')} disabled={i === items.length - 1} onClick={() => move(i, 1)}>↓</button>
                 <button className="btn" aria-label={`${t('join.remove')} ${i + 1}`} title={t('join.remove')} onClick={() => setItems((old) => old.filter((_, n) => n !== i))}>✕</button>
@@ -123,8 +131,9 @@ export function JoinView({ state, setState, onQueued }: { state: JoinState; setS
           <div className="section">
             <h2>{t('join.effects')}</h2>
             <div className="row end">
-              <label className="field">{t('join.speed')}
-                <select aria-label={t('join.speed')} value={effects.speed} onChange={(e) => setEffects({ speed: Number(e.target.value) })}>
+              <label className="field">{t('join.speedAll')}
+                <select aria-label={t('join.speedAll')} value="" onChange={(e) => { const v = Number(e.target.value); if (v) setItems((old) => old.map((it) => ({ ...it, speed: v }))); }}>
+                  <option value="" disabled>{t('join.setAll')}</option>
                   {SPEEDS.map((s) => <option key={s} value={s}>{speedLabel(s)}</option>)}
                 </select>
               </label>

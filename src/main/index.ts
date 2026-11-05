@@ -110,7 +110,7 @@ app.whenReady().then(() => {
   ipcMain.handle('join:start', async (_e, req: JoinRequest) => {
     if (!Array.isArray(req.inputs) || req.inputs.length < 2 || req.inputs.length > MAX_JOIN) throw new Error(msg('err.joinCount', { max: MAX_JOIN }));
     if (!isAudioTarget(req.format)) throw new Error(msg('err.mode'));
-    const effects = sanitizeEffects(req.effects);
+    const effects = sanitizeEffects(req.effects, req.inputs.length);
     const infos = await Promise.all(req.inputs.map((p) => probeMedia(binaries.require('ffprobe'), p)));
     joinPlan(infos, req.format, effects); // Kaster forståelig feil før noe legges i køen.
     const fmt = req.format === 'original' ? msg('fmt.original') : req.format.toUpperCase();
@@ -127,7 +127,7 @@ app.whenReady().then(() => {
     const control: RenderControl = { stopped: false };
     preview = control;
     try {
-      const { output, length } = await renderJoin(joinDeps, { ...req, effects: sanitizeEffects(req.effects) },
+      const { output, length } = await renderJoin(joinDeps, { ...req, effects: sanitizeEffects(req.effects, req.inputs.length) },
         async (ext) => join(tempRoot, `preview-${Date.now()}${ext}`), (percent) => send('preview', percent), control);
       previewFile = output;
       return { src: mediaSrc(output), durationSeconds: length, path: output };

@@ -114,15 +114,17 @@ const assert = require('node:assert/strict');
   // Køen viser nyeste først, så klipp 3 ble lagt til først. Flytt klipp 2 opp.
   await page.getByRole('button', { name: 'Move up 2' }).click();
   await page.screenshot({ path: join(shots, '10-skjot.png') });
-  // Effekter, tittel og forhåndsvisning: 9,5 s ved 1,5x blir 6,33 s
-  await page.getByLabel('Speed').selectOption('1.5');
+  // Hastighet per fil: klipp 2 (3,5 s) i 1x og klipp 3 (6 s) i 1,5x gir 3,5 + 4 = 7,5 s
+  await page.getByLabel('Speed for all files').selectOption('1.5');
+  await page.getByLabel('Speed for file 1').selectOption('1');
+  assert.equal(await page.getByLabel('Speed for file 2').inputValue(), '1.5');
   assert.equal(await page.locator('select[aria-label="Audio format"] option[value="original"]').count(), 0);
   await page.getByLabel('Title').fill('Min mix');
   await page.getByRole('button', { name: 'Listen to the result' }).click();
   await page.locator('audio.preview').waitFor({ timeout: 30000 });
   await page.waitForFunction(() => document.querySelector('audio.preview').readyState >= 1, null, { timeout: 15000 });
   const previewLength = await page.evaluate(() => document.querySelector('audio.preview').duration);
-  assert.ok(Math.abs(previewLength - 6.33) < 0.2, `forhåndsvisning ${previewLength}`);
+  assert.ok(Math.abs(previewLength - 7.5) < 0.2, `forhåndsvisning ${previewLength}`);
   await page.screenshot({ path: join(shots, '12-skjot-effekter.png') });
   await page.getByRole('button', { name: 'Join 2 files' }).click();
   await page.waitForFunction(() => document.querySelectorAll('.job[data-status=done]').length === 5, null, { timeout: 40000 });
@@ -130,7 +132,7 @@ const assert = require('node:assert/strict');
   assert.equal(joined.length, 1, readdirSync(join(root, 'ned')).join());
   assert.ok(joined[0].endsWith('.mp3') && joined[0].includes('(audio clip 00.00.06-00.00.09) (joined)'), joined[0]);
   const joinedLength = Number(execFileSync(join(binDir, 'ffprobe'), ['-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', join(root, 'ned', joined[0])]).toString());
-  assert.ok(Math.abs(joinedLength - 6.33) < 0.2, `skjøtet lengde ${joinedLength}`);
+  assert.ok(Math.abs(joinedLength - 7.5) < 0.2, `skjøtet lengde ${joinedLength}`);
   const title = execFileSync(join(binDir, 'ffprobe'), ['-v', 'error', '-show_entries', 'format_tags=title', '-of', 'csv=p=0', join(root, 'ned', joined[0])]).toString().trim();
   assert.equal(title, 'Min mix');
   for (const f of made) {
