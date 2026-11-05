@@ -19,6 +19,7 @@ export function parseProbe(json: string, path: string, sizeBytes: number): Media
       index: s.index, type, attachedPic: attached, codec: s.codec_name ?? '?',
       width: s.width, height: s.height, frameRate: type === 'video' ? parseRate(s.avg_frame_rate) : undefined,
       channels: s.channels, sampleRate: s.sample_rate ? Number(s.sample_rate) : undefined,
+      bits: Number(s.bits_per_raw_sample) || Number(s.bits_per_sample) || undefined,
     };
   });
   const duration = Number(data.format?.duration);

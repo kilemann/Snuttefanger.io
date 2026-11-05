@@ -18,6 +18,7 @@ const CONTENT: Record<Language, Content> = {
         'Open a file under Cut, drop a file on the window, or select Open in cutter under Queue.',
         'Choose the number of clips, from 1 to 10. Each clip becomes its own file.',
         'Choose Video and audio or Audio only for each clip. Audio only copies the first audio track without re-encoding.',
+        'For audio clips, choose the audio format. Original keeps the audio unchanged. MP3, M4A and Opus play almost everywhere, but cost a little quality.',
         'Select the clip you are working on, and set start and end with the buttons, the keys or the strip.',
         'The original file is never changed. Clips are saved next to it, or in the folder chosen under Settings.',
       ]],
@@ -37,6 +38,7 @@ const CONTENT: Record<Language, Content> = {
     ],
     versionsTitle: 'Versions',
     versions: [
+      ['v0.4.0', 'Choose the audio format for each audio clip: Original, MP3, M4A, Opus, FLAC or WAV.'],
       ['v0.3.0', 'Choose Video and audio or Audio only for each clip. Download choices are visible right away. English and Norwegian.'],
       ['v0.2.0', 'Choose 1 to 10 clips from the same file. Clips start at 0 even when the file has cover art. Info button.'],
       ['v0.1.0', 'First version: download, queue and lossless cutting.'],
@@ -55,6 +57,7 @@ const CONTENT: Record<Language, Content> = {
         'Åpne en fil under Klipp, slipp en fil i vinduet, eller velg Åpne i klipperen under Kø.',
         'Velg antall klipp, fra 1 til 10. Hvert klipp blir en egen fil.',
         'Velg Video og lyd eller Bare lyd for hvert klipp. Bare lyd kopierer første lydspor uten omkoding.',
+        'For lydklipp velger du lydformat. Original beholder lyden uendret. MP3, M4A og Opus spilles nesten overalt, men koster litt kvalitet.',
         'Merk hvilket klipp du jobber med, og sett start og slutt med knappene, tastene eller stripen.',
         'Originalfilen endres aldri. Klippene lagres ved siden av den, eller i mappen du har valgt under Innstillinger.',
       ]],
@@ -74,6 +77,7 @@ const CONTENT: Record<Language, Content> = {
     ],
     versionsTitle: 'Versjoner',
     versions: [
+      ['v0.4.0', 'Velg lydformat for hvert lydklipp: Original, MP3, M4A, Opus, FLAC eller WAV.'],
       ['v0.3.0', 'Velg Video og lyd eller Bare lyd for hvert klipp. Valgene for nedlasting vises med en gang. Norsk og engelsk.'],
       ['v0.2.0', 'Velg 1 til 10 klipp fra samme fil. Klipp starter på 0 også når filen har omslagsbilde. Infoknapp.'],
       ['v0.1.0', 'Første versjon: nedlasting, kø og tapsfritt klipp.'],

@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 import { assetsFor, parseChecksum } from '../src/main/services/BinaryManager';
 import { assertHttpUrl, buildDownloadArgs, buildInfoArgs, extractError, parseInfoJson, parseProgressLine } from '../src/main/services/DownloaderService';
-import { audioExtension, buildCoverArgs, buildCutArgs, cutOptions, outputExtension, parseOutTime, validateCut } from '../src/main/services/ExportService';
+import { audioExtension, audioPlan, buildCoverArgs, buildCutArgs, isAudioTarget, cutOptions, outputExtension, parseOutTime, validateCut } from '../src/main/services/ExportService';
 import { JobQueue, type JobHandle } from '../src/main/services/JobQueue';
 import { parseProbe } from '../src/main/services/MediaProbeService';
 import { sanitizeSettings } from '../src/main/services/SettingsService';
@@ -79,7 +79,7 @@ test('omslagsbilde hentes fra egen inngang, og FLAC kodes tapsfritt på nytt', (
   assert.deepEqual(cutOptions(info), { cover: { index: 2, outputVideoIndex: 1 }, encodeFlac: false, audioOnly: false });
   // Bare lyd: Opus havner i .opus, som ikke kan ha omslag, og bare første lydspor tas med.
   assert.equal(outputExtension(info, 'audio'), '.opus');
-  assert.deepEqual(cutOptions(info, 'audio'), { cover: undefined, encodeFlac: false, audioOnly: true });
+  assert.deepEqual(cutOptions(info, 'audio'), { cover: undefined, encodeFlac: false, audioOnly: true, encode: undefined });
   const withCover = buildCutArgs('in.mp4', 1, 2, 'ut.m4a', { audioOnly: true, cover: { index: 2, outputVideoIndex: 0 } });
   assert.equal(withCover.filter((x) => x === '-i').length, 1, 'omslaget legges på i eget steg');
   const step2 = buildCoverArgs('lyd.m4a', 'in.mp4', 2, 'ut.m4a');
@@ -211,4 +211,21 @@ test('språkinnstillingen godtar bare norsk og engelsk', () => {
   const d = { downloadDir: '/d', exportDir: '', quality: 'best', container: 'mp4', audioFormat: 'mp3', maxDownloads: 3, embedThumbnail: true, ytDlpPath: '', ffmpegPath: '', ffprobePath: '', denoPath: '', language: 'nb' } as Settings;
   assert.equal(sanitizeSettings({ language: 'en' }, d).language, 'en');
   assert.equal(sanitizeSettings({ language: 'de' as never }, d).language, 'nb');
+});
+
+test('lydformat: original kopierer, andre formater kodes om med mindre lyden allerede har formatet', () => {
+  const opus = parseProbe(JSON.stringify({ format: { duration: '9' }, streams: [{ index: 0, codec_type: 'video', codec_name: 'av1' }, { index: 1, codec_type: 'audio', codec_name: 'opus' }] }), '/m/a.mp4', 5);
+  assert.deepEqual(audioPlan(opus), { ext: '.opus', encode: undefined });
+  assert.deepEqual(audioPlan(opus, 'opus'), { ext: '.opus', encode: undefined });
+  assert.deepEqual(audioPlan(opus, 'mp3'), { ext: '.mp3', encode: ['-c:a', 'libmp3lame', '-q:a', '0'] });
+  assert.deepEqual(audioPlan(opus, 'm4a'), { ext: '.m4a', encode: ['-c:a', 'aac', '-b:a', '256k'] });
+  assert.deepEqual(audioPlan(opus, 'wav'), { ext: '.wav', encode: ['-c:a', 'pcm_s16le'] });
+  const flac24 = parseProbe(JSON.stringify({ format: { duration: '9' }, streams: [{ index: 0, codec_type: 'audio', codec_name: 'flac', bits_per_raw_sample: '24' }] }), '/m/a.flac', 5);
+  assert.deepEqual(audioPlan(flac24, 'wav'), { ext: '.wav', encode: ['-c:a', 'pcm_s24le'] });
+  assert.deepEqual(audioPlan(flac24, 'flac').encode, ['-c:a', 'flac']);
+  // Omkoding søker før -i (nøyaktig når FFmpeg dekoder). Kopiering kutter etter -i.
+  const enc = buildCutArgs('in.mp4', 1, 2, 'ut.mp3', { audioOnly: true, encode: ['-c:a', 'libmp3lame', '-q:a', '0'] });
+  assert.ok(enc.indexOf('-ss') < enc.indexOf('-i'));
+  assert.ok(!enc.includes('copy') && enc.includes('libmp3lame'));
+  assert.ok(isAudioTarget('mp3') && isAudioTarget('original') && !isAudioTarget('ogg') && !isAudioTarget('toString'));
 });

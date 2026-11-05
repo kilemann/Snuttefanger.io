@@ -2,6 +2,13 @@
 
 The project uses [semantic versioning](https://semver.org/).
 
+## 0.4.0 (2026-11-05)
+
+### Added
+- Choose the audio format for each audio clip: Original (no re-encoding), MP3, M4A, Opus, FLAC or WAV. This also works when cutting audio files, for example FLAC to MP3.
+- Re-encoded audio clips are cut exactly at the selected times. MP3 uses LAME V0, M4A uses AAC at 256 kbit/s and Opus uses 192 kbit/s.
+- MP3, M4A and FLAC clips keep the cover art.
+
 ## 0.3.0 (2026-11-05)
 
 ### Added

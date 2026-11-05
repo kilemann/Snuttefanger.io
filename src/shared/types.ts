@@ -54,6 +54,7 @@ export interface MediaStream {
   frameRate?: number;
   channels?: number;
   sampleRate?: number;
+  bits?: number;
 }
 
 export interface MediaInfo {
@@ -74,16 +75,21 @@ export interface OpenedMedia extends MediaInfo {
 /** av: video and audio as in the original. audio: only the first audio track, without re-encoding. */
 export type CutMode = 'av' | 'audio';
 
+/** original: lyden kopieres uendret. De andre kodes om, med mindre lyden allerede har det formatet. */
+export type AudioTarget = 'original' | 'mp3' | 'm4a' | 'opus' | 'flac' | 'wav';
+export const AUDIO_TARGETS: AudioTarget[] = ['original', 'mp3', 'm4a', 'opus', 'flac', 'wav'];
+
 export interface CutRequest {
   input: string;
   startSeconds: number;
   endSeconds: number;
   mode: CutMode;
+  audioFormat?: AudioTarget;
 }
 
 export interface CutBatch {
   input: string;
-  clips: { startSeconds: number; endSeconds: number; mode: CutMode }[];
+  clips: { startSeconds: number; endSeconds: number; mode: CutMode; audioFormat: AudioTarget }[];
 }
 
 export interface Settings {

@@ -66,6 +66,7 @@ const assert = require('node:assert/strict');
   // Klipp 2 og 3 som bare lyd
   await page.getByLabel('Export clip 2').selectOption('audio');
   await page.getByLabel('Export clip 3').selectOption('audio');
+  await page.getByLabel('Audio format clip 3').selectOption('mp3');
   await page.locator('h1').first().click();
   await page.keyboard.press('ArrowRight');
   await page.waitForTimeout(300);
@@ -84,7 +85,7 @@ const assert = require('node:assert/strict');
   await page.screenshot({ path: join(shots, '4-klipp-ferdig.png') });
   const files = readdirSync(join(root, 'ned'));
   const audio = files.filter((f) => f.includes('(audio clip '));
-  assert.deepEqual(audio.map((f) => f.slice(-4)).sort(), ['.m4a', '.m4a'], files.join());
+  assert.deepEqual(audio.map((f) => f.slice(-4)).sort(), ['.m4a', '.mp3'], files.join());
   const made = files.filter((f) => f.includes('(clip '));
   assert.equal(made.length, 1, files.join());
   for (const f of audio) {
@@ -113,7 +114,7 @@ const assert = require('node:assert/strict');
   await page.getByLabel('Language').selectOption('nb');
   await page.getByRole('heading', { name: 'Innstillinger' }).waitFor();
   await page.getByRole('button', { name: 'Kø' }).click();
-  await page.getByText('Klipp 2 av 3 fra snutt [snutt].mp4 (bare lyd)').waitFor();
+  await page.getByText('Klipp 3 av 3 fra snutt [snutt].mp4 (lyd, MP3)').waitFor();
   await page.screenshot({ path: join(shots, '8-norsk-ko.png') });
   await page.getByRole('button', { name: 'Klipp', exact: true }).click();
   await page.getByRole('button', { name: 'Eksporter klipp' }).waitFor();

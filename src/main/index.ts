@@ -6,7 +6,7 @@ import { languageFromLocale, msg, translate } from '../shared/i18n';
 import { mediaSrc, registerMediaHandler, registerSchemePrivileges } from './protocol';
 import { BinaryManager } from './services/BinaryManager';
 import { DownloadRunner, assertHttpUrl, fetchUrlInfo, type DownloaderDeps } from './services/DownloaderService';
-import { CutRunner, MAX_CLIPS, outputExtension, validateCut } from './services/ExportService';
+import { CutRunner, MAX_CLIPS, isAudioTarget, outputExtension, validateCut } from './services/ExportService';
 import { JobQueue } from './services/JobQueue';
 import { probeMedia } from './services/MediaProbeService';
 import { stopAllProcesses } from './services/ProcessManager';
@@ -100,14 +100,16 @@ app.whenReady().then(() => {
     clips.forEach((c, i) => {
       try {
         if (c.mode !== 'av' && c.mode !== 'audio') throw new Error(msg('err.mode'));
+        if (!isAudioTarget(c.audioFormat)) throw new Error(msg('err.mode'));
         validateCut(c.startSeconds, c.endSeconds, info.durationSeconds);
-        outputExtension(info, c.mode);
+        outputExtension(info, c.mode, c.audioFormat);
       } catch (e) { throw new Error(msg('err.clipN', { n: i + 1, inner: (e as Error).message })); }
     });
     clips.forEach((c, i) => {
       const base = clips.length > 1 ? msg('job.clipOf', { i: i + 1, n: clips.length, name: info.fileName }) : msg('job.clip', { name: info.fileName });
-      const title = c.mode === 'audio' ? msg('job.audio', { title: base }) : base;
-      queue.enqueue('export', title, { input: batch.input, startSeconds: c.startSeconds, endSeconds: c.endSeconds, mode: c.mode } satisfies CutRequest);
+      const fmt = c.audioFormat === 'original' ? msg('fmt.original') : c.audioFormat.toUpperCase();
+      const title = c.mode === 'audio' ? msg('job.audio', { title: base, fmt }) : base;
+      queue.enqueue('export', title, { input: batch.input, startSeconds: c.startSeconds, endSeconds: c.endSeconds, mode: c.mode, audioFormat: c.audioFormat } satisfies CutRequest);
     });
   });
   ipcMain.handle('jobs:get', () => queue.list());

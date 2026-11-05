@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type DragEvent, type PointerEvent as ReactPointerEvent } from 'react';
-import type { CutMode, MediaStream, OpenedMedia } from '../../shared/types';
+import { AUDIO_TARGETS, type AudioTarget, type CutMode, type MediaStream, type OpenedMedia } from '../../shared/types';
 import { cleanError } from '../main';
 import { formatBytes, formatTime, parseTime } from '../format';
 import { t } from '../i18n';
@@ -20,7 +20,7 @@ function describe(s: MediaStream): string {
 }
 
 const MAX_CLIPS = 10;
-interface Clip { start: number; end: number; mode: CutMode; }
+interface Clip { start: number; end: number; mode: CutMode; fmt: AudioTarget; }
 
 function TimeField({ label, value, onCommit, onFocus }: { label: string; value: number; onCommit(v: number): void; onFocus(): void }) {
   const [text, setText] = useState(formatTime(value));
@@ -78,11 +78,14 @@ function Cutter({ media, onQueued }: { media: OpenedMedia; onQueued(): void }) {
   const hasAudio = media.streams.some((s) => s.type === 'audio');
   // Valget vises bare når filen har både bilde og lyd. Rene lydfiler eksporteres som de er.
   const canChoose = hasVideo && hasAudio;
+  const showFormat = hasAudio;
+  // Lydformat gjelder lydklipp, og alle klipp fra rene lydfiler.
+  const isAudioClip = (c: Clip) => !hasVideo || c.mode === 'audio';
   const ref = useRef<HTMLVideoElement>(null);
   const stripRef = useRef<HTMLDivElement>(null);
   const [time, setTime] = useState(0);
   // Klipp over valgt antall beholdes, så de kommer tilbake hvis antallet settes opp igjen.
-  const [clips, setClips] = useState<Clip[]>([{ start: 0, end: duration, mode: 'av' }]);
+  const [clips, setClips] = useState<Clip[]>([{ start: 0, end: duration, mode: 'av', fmt: 'original' }]);
   const [count, setCount] = useState(1);
   const [active, setActive] = useState(0);
   const [playing, setPlaying] = useState(false);
@@ -109,7 +112,7 @@ function Cutter({ media, onQueued }: { media: OpenedMedia; onQueued(): void }) {
       const out = [...all];
       while (out.length < next) {
         const start = Math.min(time, Math.max(0, duration - 1));
-        out.push({ start, end: duration, mode: out[out.length - 1].mode });
+        out.push({ start, end: duration, mode: out[out.length - 1].mode, fmt: out[out.length - 1].fmt });
       }
       return out;
     });
@@ -118,6 +121,7 @@ function Cutter({ media, onQueued }: { media: OpenedMedia; onQueued(): void }) {
   };
   const selectClip = (i: number) => { setActive(i); seek(clips[i].start); };
   const visible = clips.slice(0, count);
+  const formatColumn = showFormat && visible.some(isAudioClip);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -157,7 +161,11 @@ function Cutter({ media, onQueued }: { media: OpenedMedia; onQueued(): void }) {
     try {
       await api.startCuts({
         input: media.path,
-        clips: visible.map((c) => ({ startSeconds: c.start, endSeconds: c.end, mode: canChoose ? c.mode : 'av' })),
+        clips: visible.map((c) => ({
+          startSeconds: c.start, endSeconds: c.end, audioFormat: isAudioClip(c) ? c.fmt : 'original',
+          // Rene lydfiler med Original kopieres som før, med alle spor. Andre formater lager et lydklipp.
+          mode: hasVideo ? (canChoose ? c.mode : 'av') : (c.fmt === 'original' ? 'av' : 'audio'),
+        })),
       });
       onQueued();
     } catch (e) { setError(cleanError(e)); }
@@ -178,7 +186,7 @@ function Cutter({ media, onQueued }: { media: OpenedMedia; onQueued(): void }) {
       <div className="strip" ref={stripRef} onPointerDown={drag(seek)} aria-label={t('cut.strip')}>
         {visible.map((c, i) => (
           <div key={i} className={`strip-sel ${i === active ? 'active' : ''}`} style={{ left: pct(c.start), width: `calc(${pct(c.end)} - ${pct(c.start)})`, zIndex: i === active ? 2 : 1 }}>
-            {count > 1 ? i + 1 : ''}{canChoose && c.mode === 'audio' ? ' ♪' : ''}
+            {count > 1 ? i + 1 : ''}{canChoose && c.mode === 'audio' ? ' ♪' : ''}{isAudioClip(c) && c.fmt !== 'original' ? ` ${c.fmt.toUpperCase()}` : ''}
           </div>
         ))}
         <div className="strip-head" style={{ left: pct(time), zIndex: 3 }} />
@@ -197,19 +205,20 @@ function Cutter({ media, onQueued }: { media: OpenedMedia; onQueued(): void }) {
         <button className="btn primary" onClick={exportCuts}>{count === 1 ? t('cut.export1') : t('cut.exportN', { n: String(count) })}</button>
       </div>
       {error && <p className="error" role="alert">{error}</p>}
-      <div className={`clips ${canChoose ? 'with-mode' : ''}`}>
+      <div className="clips" style={{ gridTemplateColumns: `auto auto 128px 128px auto auto${canChoose ? ' auto' : ''}${formatColumn ? ' auto' : ''}` }}>
         <div /><div /><div className="clips-head">{t('cut.start')}</div><div className="clips-head">{t('cut.end')}</div><div />
         <div className="clips-head">{t('cut.length')}</div>{canChoose && <div className="clips-head">{t('cut.mode')}</div>}
+        {formatColumn && <div className="clips-head">{t('cut.format')}</div>}
         {visible.map((c, i) => (
           <div className={`clip-row ${i === active ? 'active' : ''}`} key={i} data-clip={i + 1}>
             <label className="clip-name">
               <input type="radio" name="active-clip" checked={i === active} onChange={() => selectClip(i)} />
               {t('cut.clipN', { n: String(i + 1) })}
             </label>
-            <button className="btn" onClick={() => { setActive(i); setIn(i, time); }}>{t('cut.setStart')}</button>
+            <button className="btn" title={t('cut.setStartTip')} onClick={() => { setActive(i); setIn(i, time); }}>{t('cut.setStart')}</button>
             <TimeField label={t('cut.startN', { n: String(i + 1) })} value={c.start} onFocus={() => setActive(i)} onCommit={(v) => setIn(i, v)} />
             <TimeField label={t('cut.endN', { n: String(i + 1) })} value={c.end} onFocus={() => setActive(i)} onCommit={(v) => setOut(i, v)} />
-            <button className="btn" onClick={() => { setActive(i); setOut(i, time); }}>{t('cut.setEnd')}</button>
+            <button className="btn" title={t('cut.setEndTip')} onClick={() => { setActive(i); setOut(i, time); }}>{t('cut.setEnd')}</button>
             <div className="num small muted">{formatTime(c.end - c.start)}</div>
             {canChoose && (
               <select aria-label={t('cut.modeN', { n: String(i + 1) })} value={c.mode} onFocus={() => setActive(i)}
@@ -218,10 +227,17 @@ function Cutter({ media, onQueued }: { media: OpenedMedia; onQueued(): void }) {
                 <option value="audio">{t('cut.audio')}</option>
               </select>
             )}
+            {formatColumn && (isAudioClip(c) ? (
+              <select aria-label={t('cut.formatN', { n: String(i + 1) })} value={c.fmt} onFocus={() => setActive(i)}
+                onChange={(e) => update(i, (old) => ({ ...old, fmt: e.target.value as AudioTarget }))}>
+                {AUDIO_TARGETS.map((f) => <option key={f} value={f}>{f === 'original' ? t('cut.original') : f.toUpperCase()}</option>)}
+              </select>
+            ) : <div />)}
           </div>
         ))}
       </div>
       <p className="muted small">{t('cut.noteAv')}{canChoose ? ` ${t('cut.noteAudio')}` : ''}</p>
+      {formatColumn && <p className="muted small">{t('cut.noteFormat')}</p>}
       <p className="muted small">
         {t('cut.scClip')} <kbd>I</kbd> {t('cut.scStart')}, <kbd>O</kbd> {t('cut.scEnd')}. {t('cut.scPlayback')} <kbd>{t('cut.scSpace')}</kbd> {t('cut.scPlay')}, <kbd>←</kbd> <kbd>→</kbd> {t('cut.scSecond')} <kbd>Shift</kbd> {t('cut.scTen')}.
       </p>

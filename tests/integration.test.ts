@@ -12,7 +12,7 @@ import { CutRunner } from '../src/main/services/ExportService';
 import { JobQueue } from '../src/main/services/JobQueue';
 import { probeMedia } from '../src/main/services/MediaProbeService';
 import { runProcess } from '../src/main/services/ProcessManager';
-import type { DownloadRequest, Job, Settings } from '../src/shared/types';
+import type { AudioTarget, DownloadRequest, Job, Settings } from '../src/shared/types';
 
 const root = mkdtempSync(join(tmpdir(), 'snutt-test-'));
 const work = join(root, 'Blåbærsyltetøy med mellomrom');
@@ -131,6 +131,28 @@ test('bare lyd: første lydspor kopieres uendret, starter på 0 og beholder omsl
     assert.ok(out.startSeconds < 0.05, `${name} starter på ${out.startSeconds}`);
     assert.ok(Math.abs(out.durationSeconds - 8) < 0.1, `${name} varer ${out.durationSeconds}`);
     assert.equal(job.note, undefined);
+  }
+});
+
+test('lydformat: omkoding gir riktig format, nøyaktig lengde, start på 0 og omslag der det passer', async () => {
+  const dir = join(work, 'formater');
+  const cases: [string, AudioTarget, string, string, boolean][] = [
+    ['a.webm', 'mp3', '.mp3', 'mp3', false], ['a-omslag.mp4', 'mp3', '.mp3', 'mp3', true], ['a.flac', 'wav', '.wav', 'pcm_s24le', false],
+    // Testfilen er 24-bit FLAC, så WAV blir 24-bit.
+    ['a.mp3', 'm4a', '.m4a', 'aac', true], ['a-omslag.mp4', 'opus', '.opus', 'opus', false], ['a.wav', 'flac', '.flac', 'flac', false],
+  ];
+  for (const [name, target, ext, codec, cover] of cases) {
+    const queue = new JobQueue(() => {});
+    queue.register('export', new CutRunner({ ffmpeg: () => bin.require('ffmpeg'), ffprobe: () => bin.require('ffprobe'), exportDir: () => join(dir, 'format') }));
+    queue.enqueue('export', 'k', { input: join(dir, name), startSeconds: 7, endSeconds: 15, mode: 'audio', audioFormat: target });
+    const job = await waitFor(queue, (j) => ['done', 'failed'].includes(j.status));
+    assert.equal(job.status, 'done', `${name} til ${target}: ${job.error}`);
+    assert.ok(job.outputPath!.endsWith(ext), job.outputPath ?? '');
+    const out = await probeMedia(bin.require('ffprobe'), job.outputPath!);
+    assert.deepEqual(out.streams.filter((s) => !s.attachedPic).map((s) => s.codec), [codec], `${name} til ${target}`);
+    assert.equal(out.streams.some((s) => s.attachedPic), cover, `${name} til ${target} omslag`);
+    assert.ok(out.startSeconds < 0.05, `${name} til ${target} starter på ${out.startSeconds}`);
+    assert.ok(Math.abs(out.durationSeconds - 8) < 0.1, `${name} til ${target} varer ${out.durationSeconds}`);
   }
 });
 

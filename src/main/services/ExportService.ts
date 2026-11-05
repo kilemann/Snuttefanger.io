@@ -2,7 +2,7 @@ import { msg, translate, type Language } from '../../shared/i18n';
 import { existsSync } from 'node:fs';
 import { mkdir, rm } from 'node:fs/promises';
 import { basename, dirname, extname, join } from 'node:path';
-import type { CutMode, CutRequest, Job, JobProgress, MediaInfo } from '../../shared/types';
+import type { AudioTarget, CutMode, CutRequest, Job, JobProgress, MediaInfo } from '../../shared/types';
 import type { JobHandle, JobRunner } from './JobQueue';
 import { probeMedia } from './MediaProbeService';
 import { runProcess } from './ProcessManager';
@@ -33,28 +33,55 @@ export interface CutOptions {
   encodeFlac?: boolean;
   /** Only the first audio track. */
   audioOnly?: boolean;
+  /** Codec arguments when the audio is re-encoded. Missing means the audio is copied. */
+  encode?: string[];
 }
 
-export function outputExtension(info: MediaInfo, mode: CutMode): string {
-  if (mode === 'av') return extname(info.path);
+interface Target { ext: string; same: string[]; encode(bits: number): string[] }
+const TARGETS: Record<Exclude<AudioTarget, 'original'>, Target> = {
+  mp3: { ext: '.mp3', same: ['mp3'], encode: () => ['-c:a', 'libmp3lame', '-q:a', '0'] },
+  m4a: { ext: '.m4a', same: ['aac'], encode: () => ['-c:a', 'aac', '-b:a', '256k'] },
+  opus: { ext: '.opus', same: ['opus'], encode: () => ['-c:a', 'libopus', '-b:a', '192k'] },
+  // FLAC og WAV er tapsfrie, så de kodes alltid på nytt. Det gir riktig lengde og tid fra 0.
+  flac: { ext: '.flac', same: [], encode: () => ['-c:a', 'flac'] },
+  wav: { ext: '.wav', same: [], encode: (bits) => ['-c:a', bits > 16 ? 'pcm_s24le' : 'pcm_s16le'] },
+};
+
+export function isAudioTarget(v: unknown): v is AudioTarget {
+  return v === 'original' || (typeof v === 'string' && Object.hasOwn(TARGETS, v));
+}
+
+/** Filtype og eventuell omkoding for et lydklipp. */
+export function audioPlan(info: MediaInfo, target: AudioTarget = 'original'): { ext: string; encode?: string[] } {
   const audio = info.streams.find((s) => s.type === 'audio');
   if (!audio) throw new Error(msg('err.noAudio'));
-  return audioExtension(audio.codec);
+  if (target === 'original') {
+    return { ext: audioExtension(audio.codec), encode: audio.codec === 'flac' ? ['-c:a', 'flac'] : undefined };
+  }
+  const t = TARGETS[target];
+  return { ext: t.ext, encode: t.same.includes(audio.codec) ? undefined : t.encode(audio.bits ?? 16) };
 }
 
-export function cutOptions(info: MediaInfo, mode: CutMode = 'av'): CutOptions {
-  const ext = outputExtension(info, mode).toLowerCase();
+export function outputExtension(info: MediaInfo, mode: CutMode, target: AudioTarget = 'original'): string {
+  return mode === 'av' ? extname(info.path) : audioPlan(info, target).ext;
+}
+
+export function cutOptions(info: MediaInfo, mode: CutMode = 'av', target: AudioTarget = 'original'): CutOptions {
+  const ext = outputExtension(info, mode, target).toLowerCase();
   const cover = COVER_EXT.includes(ext) ? info.streams.find((s) => s.attachedPic) : undefined;
   const outputVideoIndex = mode === 'audio' ? 0 : info.streams.filter((s) => s.type === 'video').length;
   return {
     cover: cover && { index: cover.index, outputVideoIndex },
-    encodeFlac: ext === '.flac' && info.streams.some((s) => s.codec === 'flac'),
+    encodeFlac: mode === 'av' && ext === '.flac' && info.streams.some((s) => s.codec === 'flac'),
     audioOnly: mode === 'audio',
+    ...(mode === 'audio' ? { encode: audioPlan(info, target).encode } : {}),
   };
 }
 
 export function buildCutArgs(input: string, start: number, end: number, output: string, options: CutOptions = {}): string[] {
-  const { encodeFlac, audioOnly } = options;
+  const { encodeFlac, audioOnly, encode } = options;
+  // Ved omkoding er søk før -i nøyaktig, fordi FFmpeg dekoder og kutter på riktig sted.
+  const seekBefore = !audioOnly || !!encode;
   // Bare lyd tar aldri med omslaget her: kutt etter -i ville kastet det. Det legges på i et eget steg (buildCoverArgs).
   const cover = audioOnly ? undefined : options.cover;
   const maps = audioOnly ? ['-map', '0:a:0'] : ['-map', '0:V?', '-map', '0:a?', '-map', '0:s?', '-map', '0:t?'];
@@ -62,13 +89,13 @@ export function buildCutArgs(input: string, start: number, end: number, output: 
     '-hide_banner', '-loglevel', 'error', '-nostats', '-progress', 'pipe:1', '-n',
     // Søk før -i hopper til nærmeste keyframe i videoen. Bare lyd har ingen keyframe å ta hensyn til,
     // så der kuttes det etter -i, nøyaktig på lydrammen. Det leser fra starten av filen, men dekoder ingenting.
-    ...(audioOnly ? [] : ['-ss', start.toFixed(3), '-to', end.toFixed(3)]), '-i', input,
+    ...(seekBefore ? ['-ss', start.toFixed(3), '-to', end.toFixed(3)] : []), '-i', input,
     ...(cover ? ['-t', '1', '-i', input] : []),
-    ...(audioOnly ? ['-ss', start.toFixed(3), '-t', (end - start).toFixed(3)] : []),
+    ...(seekBefore ? [] : ['-ss', start.toFixed(3), '-t', (end - start).toFixed(3)]),
     ...maps,
     ...(cover ? ['-map', `1:${cover.index}`] : []),
-    '-ignore_unknown', '-c', 'copy',
-    ...(encodeFlac ? ['-c:a', 'flac'] : []),
+    '-ignore_unknown',
+    ...(audioOnly && encode ? encode : ['-c', 'copy', ...(encodeFlac ? ['-c:a', 'flac'] : [])]),
     ...(cover ? [`-disposition:v:${cover.outputVideoIndex}`, 'attached_pic'] : []),
     '-map_metadata', '0', '-avoid_negative_ts', 'make_zero',
     output,
@@ -116,9 +143,9 @@ export class CutRunner implements JobRunner<CutRequest> {
     const done = (async () => {
       const source = await probeMedia(this.deps.ffprobe(), req.input);
       if (stopRequested) throw new Error(msg('err.stopped'));
-      output = cutOutputPath(req.input, req.startSeconds, req.endSeconds, this.deps.exportDir(), outputExtension(source, mode), translate(this.deps.language?.() ?? 'en', mode === 'audio' ? 'file.audioClip' : 'file.clip'));
+      output = cutOutputPath(req.input, req.startSeconds, req.endSeconds, this.deps.exportDir(), outputExtension(source, mode, req.audioFormat), translate(this.deps.language?.() ?? 'en', mode === 'audio' ? 'file.audioClip' : 'file.clip'));
       await mkdir(dirname(output), { recursive: true });
-      const options = cutOptions(source, mode);
+      const options = cutOptions(source, mode, req.audioFormat);
       const coverAfter = mode === 'audio' ? options.cover : undefined;
       const ext = extname(output);
       const first = coverAfter ? join(dirname(output), `.snutt-${process.pid}-${Date.now()}${ext}`) : output;
