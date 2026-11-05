@@ -17,6 +17,7 @@ const api: SnuttApi = {
   getTools: call('tools:get'), installTools: call('tools:install'), updateYtDlp: call('tools:update-ytdlp'),
   fetchUrlInfo: call('url:info'), startDownload: call('download:start'),
   pickMedia: call('media:pick'), openMedia: call('media:open'),
+  pickMediaMany: call('media:pick-many'), probeMedia: call('media:probe'), startJoin: call('join:start'),
   pathForFile: (file) => webUtils.getPathForFile(file),
   startCuts: call('cut:start'),
   getJobs: call('jobs:get'), pauseJob: call('job:pause'), resumeJob: call('job:resume'),

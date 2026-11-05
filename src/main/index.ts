@@ -1,16 +1,19 @@
 import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron';
 import { mkdirSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
-import type { CutBatch, CutRequest, DownloadRequest, InstallState, Job, Settings, ToolName } from '../shared/types';
+import type { CutBatch, CutRequest, DownloadRequest, JoinRequest, InstallState, Job, Settings, ToolName } from '../shared/types';
 import { languageFromLocale, msg, translate } from '../shared/i18n';
 import { mediaSrc, registerMediaHandler, registerSchemePrivileges } from './protocol';
 import { BinaryManager } from './services/BinaryManager';
 import { DownloadRunner, assertHttpUrl, fetchUrlInfo, type DownloaderDeps } from './services/DownloaderService';
 import { CutRunner, MAX_CLIPS, isAudioTarget, outputExtension, validateCut } from './services/ExportService';
 import { JobQueue } from './services/JobQueue';
+import { JoinRunner, MAX_JOIN, joinPlan } from './services/JoinService';
 import { probeMedia } from './services/MediaProbeService';
 import { stopAllProcesses } from './services/ProcessManager';
 import { SettingsService } from './services/SettingsService';
+
+const MEDIA_EXTENSIONS = ['mp4', 'mkv', 'mov', 'avi', 'webm', 'mp3', 'flac', 'wav', 'aac', 'm4a', 'ogg', 'opus'];
 
 registerSchemePrivileges();
 if (process.env.SNUTT_USER_DATA) app.setPath('userData', process.env.SNUTT_USER_DATA);
@@ -52,6 +55,9 @@ app.whenReady().then(() => {
     embedThumbnail: () => settings.get().embedThumbnail,
   };
   queue.register('download', new DownloadRunner(deps));
+  queue.register('join', new JoinRunner({
+    ffmpeg: () => binaries.require('ffmpeg'), ffprobe: () => binaries.require('ffprobe'), exportDir: () => settings.get().exportDir, language: () => settings.get().language,
+  }));
   queue.register('export', new CutRunner({
     ffmpeg: () => binaries.require('ffmpeg'), ffprobe: () => binaries.require('ffprobe'), exportDir: () => settings.get().exportDir, language: () => settings.get().language,
   }));
@@ -84,9 +90,25 @@ app.whenReady().then(() => {
   ipcMain.handle('media:pick', async () => {
     const r = await dialog.showOpenDialog(win!, {
       properties: ['openFile'],
-      filters: [{ name: translate(settings.get().language, 'dlg.media'), extensions: ['mp4', 'mkv', 'mov', 'avi', 'webm', 'mp3', 'flac', 'wav', 'aac', 'm4a', 'ogg', 'opus'] }, { name: translate(settings.get().language, 'dlg.all'), extensions: ['*'] }],
+      filters: [{ name: translate(settings.get().language, 'dlg.media'), extensions: MEDIA_EXTENSIONS }, { name: translate(settings.get().language, 'dlg.all'), extensions: ['*'] }],
     });
     return r.canceled ? null : r.filePaths[0];
+  });
+  ipcMain.handle('media:pick-many', async () => {
+    const r = await dialog.showOpenDialog(win!, {
+      properties: ['openFile', 'multiSelections'],
+      filters: [{ name: translate(settings.get().language, 'dlg.media'), extensions: MEDIA_EXTENSIONS }, { name: translate(settings.get().language, 'dlg.all'), extensions: ['*'] }],
+    });
+    return r.canceled ? [] : r.filePaths;
+  });
+  ipcMain.handle('media:probe', (_e, path: string) => probeMedia(binaries.require('ffprobe'), path));
+  ipcMain.handle('join:start', async (_e, req: JoinRequest) => {
+    if (!Array.isArray(req.inputs) || req.inputs.length < 2 || req.inputs.length > MAX_JOIN) throw new Error(msg('err.joinCount', { max: MAX_JOIN }));
+    if (!isAudioTarget(req.format)) throw new Error(msg('err.mode'));
+    const infos = await Promise.all(req.inputs.map((p) => probeMedia(binaries.require('ffprobe'), p)));
+    joinPlan(infos, req.format); // Kaster forståelig feil før noe legges i køen.
+    const fmt = req.format === 'original' ? msg('fmt.original') : req.format.toUpperCase();
+    queue.enqueue('join', msg('job.join', { n: req.inputs.length, fmt }), { inputs: [...req.inputs], format: req.format } satisfies JoinRequest);
   });
   ipcMain.handle('media:open', async (_e, path: string) => {
     const info = await probeMedia(binaries.require('ffprobe'), path);

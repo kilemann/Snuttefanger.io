@@ -32,6 +32,7 @@ The main process owns everything that touches files and processes. The GUI runs 
 | `DownloaderService` | yt-dlp arguments and parsing of its output |
 | `MediaProbeService` | ffprobe information about files |
 | `ExportService` | Cutting and file names |
+| `JoinService` | Joining audio files, lossless or re-encoded |
 
 Planned: `WaveformService` in phase 3 and `HistoryService` in phase 4. The timeline belongs in the GUI.
 
@@ -57,8 +58,8 @@ App shell, queue, settings, tool installation, download of single videos, openin
 Done in v0.2 and v0.3: up to 10 clips from the same file as separate files, with video and audio or audio only chosen per clip. Remaining:
 Timeline with zoom, video-only export, and preview of formats Chromium does not support.
 
-### Phase 3: precision (v0.4)
-Waveform, precise mode with full re-encoding, merging with a compatibility check and more export options. Smart cut is considered afterwards.
+### Phase 3: precision
+Done in v0.4 and v0.5: audio format per clip with exact cuts when re-encoding, and joining of audio files with a compatibility check (lossless when possible). Video joining is postponed by Kilemann's decision. Remaining: waveform and precise mode for video. Smart cut is considered afterwards.
 
 ### Phase 4: downloader (v0.5)
 Playlists, subtitles, history, cookies for videos that require sign-in, and resuming after a restart. Cookies must never end up in Git or logs.

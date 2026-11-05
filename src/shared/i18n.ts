@@ -5,7 +5,7 @@ export type Language = 'en' | 'nb';
 export const LANGUAGES: { id: Language; name: string }[] = [{ id: 'en', name: 'English' }, { id: 'nb', name: 'Norsk' }];
 
 const en = {
-  'nav.download': 'Download', 'nav.cut': 'Cut', 'nav.queue': 'Queue', 'nav.settings': 'Settings',
+  'nav.download': 'Download', 'nav.cut': 'Cut', 'nav.join': 'Join', 'nav.queue': 'Queue', 'nav.settings': 'Settings',
   'app.menu': 'Main menu', 'app.about': 'About and help',
   'app.toolsBanner': 'Snuttefanger needs yt-dlp and FFmpeg before it can download and cut.', 'app.goToTools': 'Go to tools',
 
@@ -39,6 +39,15 @@ const en = {
   'cut.aboutFile': 'About the file', 'cut.video': 'Video', 'cut.audioStream': 'Audio', 'cut.subtitles': 'Subtitles', 'cut.cover': 'Cover art',
   'cut.other': 'Other', 'cut.fps': '{n} fps', 'cut.channels': '{n} channels',
 
+  'join.title': 'Join audio', 'join.drop': 'Drop audio files here, or add clips from the queue', 'join.add': 'Add files',
+  'join.empty': 'Add at least two files. Video files can be used too: their first audio track is joined.',
+  'join.up': 'Move up', 'join.down': 'Move down', 'join.remove': 'Remove', 'join.clear': 'Remove all', 'join.total': 'Total length {t}',
+  'join.format': 'Audio format', 'join.start': 'Join {n} files', 'join.reading': 'Reading file',
+  'join.lossless': 'The files have the same format and can be joined without re-encoding.',
+  'join.mismatch': 'The files have different formats, so they must be re-encoded. Choose an audio format.',
+  'join.note': 'Original joins without re-encoding. With MP3, AAC and Opus this can give a tiny click where the files meet. Choose a format to re-encode if you want seamless transitions.',
+  'join.noteFormat': 'MP3, M4A and Opus are re-encoded at high quality and play almost everywhere. FLAC and WAV do not sound better than the source.',
+  'join.noAudio': 'No audio', 'join.added': 'Added to Join', 'q.addToJoin': 'Add to Join',
   'set.title': 'Settings', 'set.language': 'Language', 'set.tools': 'Tools',
   'set.toolsNote': "The app downloads the tools from their publishers' GitHub pages and verifies the checksums. yt-dlp uses Deno for YouTube.",
   'set.missing': 'Missing', 'set.notWorking': 'Not working', 'set.custom': 'chosen by you', 'set.managed': 'installed by the app',
@@ -65,6 +74,9 @@ const en = {
   'err.badTimes': 'Start and end must be valid times.', 'err.outside': 'The clip must be within the length of the file.',
   'err.order': 'End must come after start.', 'err.noAudio': 'This file has no audio.',
   'err.cut': 'FFmpeg could not cut the file: {detail}', 'err.clipCount': 'Choose between 1 and {max} clips.',
+  'err.joinNoAudio': '{name} has no audio.', 'err.joinCount': 'Choose between 2 and {max} files.',
+  'err.joinMismatch': 'The files have different audio formats. Choose a format to re-encode to.', 'err.join': 'FFmpeg could not join the files: {detail}',
+  'note.joinCopy': 'Joined without re-encoding.', 'note.joinEncode': 'Joined and re-encoded.', 'job.join': 'Join {n} files ({fmt})', 'file.joined': 'joined',
   'err.clipN': 'Clip {n}: {inner}', 'err.mode': 'Unknown export type.',
   'note.keyframe': 'The clip is {s} s longer than selected, because lossless cutting has to start on a keyframe.',
   'job.clip': 'Clip from {name}', 'job.clipOf': 'Clip {i} of {n} from {name}', 'job.audio': '{title} (audio, {fmt})', 'fmt.original': 'original',
@@ -75,7 +87,7 @@ const en = {
 type Key = keyof typeof en;
 
 const nb: Record<Key, string> = {
-  'nav.download': 'Last ned', 'nav.cut': 'Klipp', 'nav.queue': 'Kø', 'nav.settings': 'Innstillinger',
+  'nav.download': 'Last ned', 'nav.cut': 'Klipp', 'nav.join': 'Skjøt', 'nav.queue': 'Kø', 'nav.settings': 'Innstillinger',
   'app.menu': 'Hovedmeny', 'app.about': 'Om appen og hjelp',
   'app.toolsBanner': 'Snuttefanger trenger yt-dlp og FFmpeg før den kan laste ned og klippe.', 'app.goToTools': 'Gå til verktøy',
 
@@ -109,6 +121,15 @@ const nb: Record<Key, string> = {
   'cut.aboutFile': 'Om filen', 'cut.video': 'Video', 'cut.audioStream': 'Lyd', 'cut.subtitles': 'Undertekst', 'cut.cover': 'Omslagsbilde',
   'cut.other': 'Annet', 'cut.fps': '{n} bilder/s', 'cut.channels': '{n} kanaler',
 
+  'join.title': 'Skjøt lyd', 'join.drop': 'Slipp lydfiler her, eller legg til klipp fra køen', 'join.add': 'Legg til filer',
+  'join.empty': 'Legg til minst to filer. Videofiler kan også brukes: da skjøtes første lydspor.',
+  'join.up': 'Flytt opp', 'join.down': 'Flytt ned', 'join.remove': 'Fjern', 'join.clear': 'Fjern alle', 'join.total': 'Samlet lengde {t}',
+  'join.format': 'Lydformat', 'join.start': 'Skjøt {n} filer', 'join.reading': 'Leser filen',
+  'join.lossless': 'Filene har samme format og kan skjøtes uten omkoding.',
+  'join.mismatch': 'Filene har ulike formater, så de må kodes om. Velg et lydformat.',
+  'join.note': 'Original skjøter uten omkoding. Med MP3, AAC og Opus kan det gi et lite klikk der filene møtes. Velg et format å kode om til hvis du vil ha sømløse overganger.',
+  'join.noteFormat': 'MP3, M4A og Opus kodes om med høy kvalitet og spilles nesten overalt. FLAC og WAV gir ikke bedre lyd enn kilden.',
+  'join.noAudio': 'Ingen lyd', 'join.added': 'Lagt til i Skjøt', 'q.addToJoin': 'Legg til i Skjøt',
   'set.title': 'Innstillinger', 'set.language': 'Språk', 'set.tools': 'Verktøy',
   'set.toolsNote': 'Appen laster ned verktøyene fra utgivernes GitHub-sider og kontrollerer sjekksummene. yt-dlp bruker Deno for YouTube.',
   'set.missing': 'Mangler', 'set.notWorking': 'Virker ikke', 'set.custom': 'valgt av deg', 'set.managed': 'installert av appen',
@@ -135,6 +156,9 @@ const nb: Record<Key, string> = {
   'err.badTimes': 'Start og slutt må være gyldige tider.', 'err.outside': 'Klippet må ligge innenfor filens lengde.',
   'err.order': 'Slutt må komme etter start.', 'err.noAudio': 'Filen har ingen lyd.',
   'err.cut': 'FFmpeg klarte ikke å klippe filen: {detail}', 'err.clipCount': 'Velg mellom 1 og {max} klipp.',
+  'err.joinNoAudio': '{name} har ingen lyd.', 'err.joinCount': 'Velg mellom 2 og {max} filer.',
+  'err.joinMismatch': 'Filene har ulike lydformater. Velg et format å kode om til.', 'err.join': 'FFmpeg klarte ikke å skjøte filene: {detail}',
+  'note.joinCopy': 'Skjøtet uten omkoding.', 'note.joinEncode': 'Skjøtet og kodet om.', 'job.join': 'Skjøt {n} filer ({fmt})', 'file.joined': 'skjøtet',
   'err.clipN': 'Klipp {n}: {inner}', 'err.mode': 'Ukjent eksporttype.',
   'note.keyframe': 'Klippet ble {s} s lengre enn valgt, fordi tapsfri klipping må starte på en keyframe.',
   'job.clip': 'Klipp fra {name}', 'job.clipOf': 'Klipp {i} av {n} fra {name}', 'job.audio': '{title} (lyd, {fmt})', 'fmt.original': 'original',

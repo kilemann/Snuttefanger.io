@@ -22,6 +22,11 @@ const CONTENT: Record<Language, Content> = {
         'Select the clip you are working on, and set start and end with the buttons, the keys or the strip.',
         'The original file is never changed. Clips are saved next to it, or in the folder chosen under Settings.',
       ]],
+      ['Joining audio', [
+        'Add files under Join, or select Add to Join on finished audio clips in the queue.',
+        'Put the files in order with the arrows, choose the audio format and select Join.',
+        'Files with the same format are joined without re-encoding. Otherwise they are re-encoded to the format you choose.',
+      ]],
       ['Good to know', [
         'Lossless cutting of video has to start on a keyframe, so a clip can be slightly longer than selected. The queue tells you when this happens.',
         'Clips from MKV files do not keep the cover art.',
@@ -38,6 +43,7 @@ const CONTENT: Record<Language, Content> = {
     ],
     versionsTitle: 'Versions',
     versions: [
+      ['v0.5.0', 'New Join menu: join audio files into one, without re-encoding when the formats match.'],
       ['v0.4.0', 'Choose the audio format for each audio clip: Original, MP3, M4A, Opus, FLAC or WAV.'],
       ['v0.3.0', 'Choose Video and audio or Audio only for each clip. Download choices are visible right away. English and Norwegian.'],
       ['v0.2.0', 'Choose 1 to 10 clips from the same file. Clips start at 0 even when the file has cover art. Info button.'],
@@ -61,6 +67,11 @@ const CONTENT: Record<Language, Content> = {
         'Merk hvilket klipp du jobber med, og sett start og slutt med knappene, tastene eller stripen.',
         'Originalfilen endres aldri. Klippene lagres ved siden av den, eller i mappen du har valgt under Innstillinger.',
       ]],
+      ['Slik skjøter du lyd', [
+        'Legg til filer under Skjøt, eller velg Legg til i Skjøt på ferdige lydklipp i køen.',
+        'Sett filene i rekkefølge med pilene, velg lydformat og velg Skjøt.',
+        'Filer med samme format skjøtes uten omkoding. Ellers kodes de om til formatet du velger.',
+      ]],
       ['Godt å vite', [
         'Tapsfri klipping av video må starte på en keyframe, så klippet kan bli litt lengre enn valgt. Køen viser når det skjer.',
         'Klipp fra MKV-filer får ikke med omslagsbildet.',
@@ -77,6 +88,7 @@ const CONTENT: Record<Language, Content> = {
     ],
     versionsTitle: 'Versjoner',
     versions: [
+      ['v0.5.0', 'Ny Skjøt-meny: skjøt lydfiler til én fil, uten omkoding når formatene er like.'],
       ['v0.4.0', 'Velg lydformat for hvert lydklipp: Original, MP3, M4A, Opus, FLAC eller WAV.'],
       ['v0.3.0', 'Velg Video og lyd eller Bare lyd for hvert klipp. Valgene for nedlasting vises med en gang. Norsk og engelsk.'],
       ['v0.2.0', 'Velg 1 til 10 klipp fra samme fil. Klipp starter på 0 også når filen har omslagsbilde. Infoknapp.'],

@@ -1,6 +1,6 @@
 import type { Language } from './i18n';
 
-export type JobKind = 'download' | 'export';
+export type JobKind = 'download' | 'export' | 'join';
 export type JobStatus = 'queued' | 'running' | 'paused' | 'done' | 'failed' | 'canceled';
 
 export interface JobProgress {
@@ -87,6 +87,11 @@ export interface CutRequest {
   audioFormat?: AudioTarget;
 }
 
+export interface JoinRequest {
+  inputs: string[];
+  format: AudioTarget;
+}
+
 export interface CutBatch {
   input: string;
   clips: { startSeconds: number; endSeconds: number; mode: CutMode; audioFormat: AudioTarget }[];
@@ -135,6 +140,9 @@ export interface SnuttApi {
   fetchUrlInfo(url: string): Promise<UrlInfo>;
   startDownload(request: DownloadRequest): Promise<void>;
   pickMedia(): Promise<string | null>;
+  pickMediaMany(): Promise<string[]>;
+  probeMedia(path: string): Promise<MediaInfo>;
+  startJoin(request: JoinRequest): Promise<void>;
   openMedia(path: string): Promise<OpenedMedia>;
   pathForFile(file: File): string;
   startCuts(batch: CutBatch): Promise<void>;

@@ -2,6 +2,13 @@
 
 The project uses [semantic versioning](https://semver.org/).
 
+## 0.5.0 (2026-11-05)
+
+### Added
+- New Join menu for audio. Add audio files, or video files whose first audio track is used, put them in order and join them into one file.
+- Files with the same codec, sample rate and channels are joined without re-encoding. Otherwise the app explains why and re-encodes to the format you choose (MP3 by default).
+- "Add to Join" button on finished audio clips and downloads in the queue.
+
 ## 0.4.0 (2026-11-05)
 
 ### Added

@@ -38,7 +38,7 @@ export interface CutOptions {
 }
 
 interface Target { ext: string; same: string[]; encode(bits: number): string[] }
-const TARGETS: Record<Exclude<AudioTarget, 'original'>, Target> = {
+export const TARGET_ENCODERS: Record<Exclude<AudioTarget, 'original'>, Target> = {
   mp3: { ext: '.mp3', same: ['mp3'], encode: () => ['-c:a', 'libmp3lame', '-q:a', '0'] },
   m4a: { ext: '.m4a', same: ['aac'], encode: () => ['-c:a', 'aac', '-b:a', '256k'] },
   opus: { ext: '.opus', same: ['opus'], encode: () => ['-c:a', 'libopus', '-b:a', '192k'] },
@@ -48,7 +48,7 @@ const TARGETS: Record<Exclude<AudioTarget, 'original'>, Target> = {
 };
 
 export function isAudioTarget(v: unknown): v is AudioTarget {
-  return v === 'original' || (typeof v === 'string' && Object.hasOwn(TARGETS, v));
+  return v === 'original' || (typeof v === 'string' && Object.hasOwn(TARGET_ENCODERS, v));
 }
 
 /** Filtype og eventuell omkoding for et lydklipp. */
@@ -58,7 +58,7 @@ export function audioPlan(info: MediaInfo, target: AudioTarget = 'original'): { 
   if (target === 'original') {
     return { ext: audioExtension(audio.codec), encode: audio.codec === 'flac' ? ['-c:a', 'flac'] : undefined };
   }
-  const t = TARGETS[target];
+  const t = TARGET_ENCODERS[target];
   return { ext: t.ext, encode: t.same.includes(audio.codec) ? undefined : t.encode(audio.bits ?? 16) };
 }
 

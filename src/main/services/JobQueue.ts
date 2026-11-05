@@ -20,7 +20,7 @@ interface Entry { job: Job; kind: JobKind; payload: unknown; handle?: JobHandle;
 export class JobQueue {
   private entries = new Map<string, Entry>();
   private runners: Partial<Record<JobKind, JobRunner<any>>> = {};
-  private limits: Record<JobKind, number> = { download: 3, export: 1 };
+  private limits: Record<JobKind, number> = { download: 3, export: 1, join: 1 };
 
   constructor(private readonly onChange: (jobs: Job[]) => void) {}
 

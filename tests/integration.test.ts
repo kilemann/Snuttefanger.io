@@ -10,6 +10,7 @@ import { BinaryManager } from '../src/main/services/BinaryManager';
 import { DownloadRunner, fetchUrlInfo, type DownloaderDeps } from '../src/main/services/DownloaderService';
 import { CutRunner } from '../src/main/services/ExportService';
 import { JobQueue } from '../src/main/services/JobQueue';
+import { JoinRunner } from '../src/main/services/JoinService';
 import { probeMedia } from '../src/main/services/MediaProbeService';
 import { runProcess } from '../src/main/services/ProcessManager';
 import type { AudioTarget, DownloadRequest, Job, Settings } from '../src/shared/types';
@@ -154,6 +155,38 @@ test('lydformat: omkoding gir riktig format, nøyaktig lengde, start på 0 og om
     assert.ok(out.startSeconds < 0.05, `${name} til ${target} starter på ${out.startSeconds}`);
     assert.ok(Math.abs(out.durationSeconds - 8) < 0.1, `${name} til ${target} varer ${out.durationSeconds}`);
   }
+});
+
+test('skjøting av lyd: tapsfritt når formatene er like, ellers omkoding, med riktig samlet lengde', async () => {
+  const dir = join(work, 'skjøt');
+  mkdirSync(dir);
+  const make = async (name: string, freq: number, codec: string[]) => {
+    const p = join(dir, name);
+    await ffmpeg('-f', 'lavfi', '-i', `sine=frequency=${freq}:duration=4`, '-ar', '48000', '-ac', '2', ...codec, p);
+    return p;
+  };
+  const o1 = await make("a1 Rock'n roll.opus", 300, ['-c:a', 'libopus']);
+  const o2 = await make('a2.opus', 400, ['-c:a', 'libopus']);
+  const o3 = await make('a3.opus', 500, ['-c:a', 'libopus']);
+  const m = await make('b.mp3', 600, ['-c:a', 'libmp3lame']);
+  const cases: [string[], AudioTarget, string, string, number][] = [
+    [[o1, o2, o3], 'original', '.opus', 'opus', 12],
+    [[o1, m, join(work, 'formater', 'a-omslag.mp4')], 'mp3', '.mp3', 'mp3', 38],
+    [[m, o2], 'flac', '.flac', 'flac', 8],
+  ];
+  for (const [inputs, format, ext, codec, length] of cases) {
+    const queue = new JobQueue(() => {});
+    queue.register('join', new JoinRunner({ ffmpeg: () => bin.require('ffmpeg'), ffprobe: () => bin.require('ffprobe'), exportDir: () => join(dir, 'ut') }));
+    queue.enqueue('join', 'j', { inputs, format });
+    const job = await waitFor(queue, (j) => ['done', 'failed'].includes(j.status));
+    assert.equal(job.status, 'done', `${format}: ${job.error}`);
+    assert.ok(job.outputPath!.endsWith(`(joined)${ext}`), job.outputPath ?? '');
+    const out = await probeMedia(bin.require('ffprobe'), job.outputPath!);
+    assert.deepEqual(out.streams.map((s) => s.codec), [codec], format);
+    assert.ok(Math.abs(out.durationSeconds - length) < 0.2, `${format} varer ${out.durationSeconds}, ventet ${length}`);
+    assert.match(job.note ?? '', format === 'original' ? /joinCopy/ : /joinEncode/);
+  }
+  assert.deepEqual(readdirSync(join(dir, 'ut')).filter((f) => f.startsWith('.snutt')), [], 'midlertidige lister er ryddet');
 });
 
 function deps(tempRoot: string): DownloaderDeps {

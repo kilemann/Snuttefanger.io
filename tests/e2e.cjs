@@ -93,6 +93,24 @@ const assert = require('node:assert/strict');
     assert.equal(streams, 'audio', f);
   }
   made.push(...audio);
+
+  // Skjøt de to lydklippene: ulike formater (M4A og MP3), så standard er omkoding til MP3
+  for (let n = 0; n < 2; n++) await page.getByRole('button', { name: 'Add to Join' }).first().click();
+  await page.getByText('Added to Join').first().waitFor();
+  await page.getByRole('button', { name: 'Join', exact: true }).click();
+  await page.getByText('The files have different formats').waitFor({ timeout: 15000 });
+  assert.equal(await page.getByLabel('Audio format').inputValue(), 'mp3');
+  assert.equal(await page.locator('select[aria-label="Audio format"] option[value="original"]').count(), 0);
+  // Køen viser nyeste først, så klipp 3 ble lagt til først. Flytt klipp 2 opp.
+  await page.getByRole('button', { name: 'Move up 2' }).click();
+  await page.screenshot({ path: join(shots, '10-skjot.png') });
+  await page.getByRole('button', { name: 'Join 2 files' }).click();
+  await page.waitForFunction(() => document.querySelectorAll('.job[data-status=done]').length === 5, null, { timeout: 40000 });
+  const joined = readdirSync(join(root, 'ned')).filter((f) => f.includes('(joined)'));
+  assert.equal(joined.length, 1, readdirSync(join(root, 'ned')).join());
+  assert.ok(joined[0].endsWith('.mp3') && joined[0].includes('(audio clip 00.00.06-00.00.09) (joined)'), joined[0]);
+  const joinedLength = Number(execFileSync(join(binDir, 'ffprobe'), ['-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', join(root, 'ned', joined[0])]).toString());
+  assert.ok(Math.abs(joinedLength - 9.5) < 0.2, `skjøtet lengde ${joinedLength}`);
   for (const f of made) {
     const out = execFileSync(join(binDir, 'ffprobe'), ['-v', 'error', '-show_entries', 'format=start_time', '-of', 'csv=p=0', join(root, 'ned', f)]).toString();
     assert.ok(Number(out) < 0.25, `${f} starter på ${out}`);

@@ -8,6 +8,7 @@ import { JobQueue, type JobHandle } from '../src/main/services/JobQueue';
 import { parseProbe } from '../src/main/services/MediaProbeService';
 import { sanitizeSettings } from '../src/main/services/SettingsService';
 import type { DownloadRequest, Job, Settings } from '../src/shared/types';
+import { buildJoinArgs, concatList, joinPlan } from '../src/main/services/JoinService';
 import { languageFromLocale, msg, translate, translateMessage } from '../src/shared/i18n';
 
 const tools = { ffmpeg: '/x/ffmpeg', deno: '/x/deno' };
@@ -228,4 +229,37 @@ test('lydformat: original kopierer, andre formater kodes om med mindre lyden all
   assert.ok(enc.indexOf('-ss') < enc.indexOf('-i'));
   assert.ok(!enc.includes('copy') && enc.includes('libmp3lame'));
   assert.ok(isAudioTarget('mp3') && isAudioTarget('original') && !isAudioTarget('ogg') && !isAudioTarget('toString'));
+});
+
+const audioInfo = (path: string, codec: string, rate = 48000, channels = 2, extra: object[] = []) => parseProbe(JSON.stringify({ format: { duration: '4' }, streams: [
+  { index: 0, codec_type: 'audio', codec_name: codec, sample_rate: String(rate), channels }, ...extra,
+] }), path, 5);
+
+test('skjøting: like lydfiler kopieres, ulike kodes om, og Original nektes når formatene er ulike', () => {
+  const opus = [audioInfo('/a.opus', 'opus'), audioInfo('/b.opus', 'opus')];
+  assert.deepEqual(joinPlan(opus, 'original'), { ext: '.opus', method: 'copy' });
+  assert.deepEqual(joinPlan(opus, 'opus'), { ext: '.opus', method: 'copy' });
+  assert.equal(joinPlan(opus, 'mp3').method, 'encode');
+  const mixed = [audioInfo('/a.mp3', 'mp3', 44100), audioInfo('/b.opus', 'opus')];
+  assert.throws(() => joinPlan(mixed, 'original'), /joinMismatch/);
+  const plan = joinPlan(mixed, 'mp3');
+  assert.deepEqual([plan.method, plan.ext, plan.sampleRate, plan.channels], ['encode', '.mp3', 44100, 2]);
+  assert.equal(joinPlan(mixed, 'opus').sampleRate, 48000, 'Opus krever 48 kHz');
+  // Omslag hindrer ikke tapsfri skjøting, men et videospor gjør det.
+  const covered = [audioInfo('/a.m4a', 'aac', 44100, 2, [{ index: 1, codec_type: 'video', codec_name: 'png', disposition: { attached_pic: 1 } }]), audioInfo('/b.m4a', 'aac', 44100)];
+  assert.equal(joinPlan(covered, 'original').method, 'copy');
+  const video = parseProbe(JSON.stringify({ format: { duration: '4' }, streams: [{ index: 0, codec_type: 'video', codec_name: 'h264' }, { index: 1, codec_type: 'audio', codec_name: 'aac', sample_rate: '44100', channels: 2 }] }), '/v.mp4', 5);
+  assert.throws(() => joinPlan([video, covered[1]], 'original'), /joinMismatch/);
+  assert.throws(() => joinPlan([opus[0]], 'mp3'), /joinCount/);
+  const flac = [audioInfo('/a.flac', 'flac', 44100), audioInfo('/b.flac', 'flac', 44100)];
+  assert.equal(joinPlan(flac, 'original').method, 'encode');
+});
+
+test('skjøting: concat-listen tåler apostrof, og omkoding bygger én filtergraf', () => {
+  assert.equal(concatList(["/m/Rock'n roll.mp3", '/m/b.mp3']), "file '/m/Rock'\\''n roll.mp3'\nfile '/m/b.mp3'\n");
+  const copy = buildJoinArgs(['/a', '/b'], '/l.txt', { ext: '.opus', method: 'copy' }, '/ut.opus');
+  assert.deepEqual(copy.slice(copy.indexOf('-f'), copy.indexOf('-f') + 6), ['-f', 'concat', '-safe', '0', '-i', '/l.txt']);
+  const enc = buildJoinArgs(['/a', '/b', '/c'], '/l.txt', { ext: '.mp3', method: 'encode', encode: ['-c:a', 'libmp3lame'], sampleRate: 44100, channels: 1 }, '/ut.mp3');
+  assert.equal(enc.filter((x) => x === '-i').length, 3);
+  assert.match(enc[enc.indexOf('-filter_complex') + 1], /aresample=44100.*channel_layouts=mono.*\[a0\]\[a1\]\[a2\]concat=n=3:v=0:a=1\[out\]$/);
 });

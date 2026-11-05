@@ -6,15 +6,16 @@ import { setLanguage, t, tm } from './i18n';
 import { DownloadView } from './views/DownloadView';
 import { EditorView } from './views/EditorView';
 import { InfoDialog } from './views/InfoDialog';
+import { JoinView, type JoinItem } from './views/JoinView';
 import { QueueView } from './views/QueueView';
 import { SettingsView } from './views/SettingsView';
 
 declare global { interface Window { snutt: SnuttApi; } }
 const api = window.snutt;
 
-export type View = 'download' | 'editor' | 'queue' | 'settings';
+export type View = 'download' | 'editor' | 'join' | 'queue' | 'settings';
 const NAV: { id: View; label: TextKey }[] = [
-  { id: 'download', label: 'nav.download' }, { id: 'editor', label: 'nav.cut' },
+  { id: 'download', label: 'nav.download' }, { id: 'editor', label: 'nav.cut' }, { id: 'join', label: 'nav.join' },
   { id: 'queue', label: 'nav.queue' }, { id: 'settings', label: 'nav.settings' },
 ];
 
@@ -26,6 +27,14 @@ function App() {
   const [mediaError, setMediaError] = useState<string | null>(null);
   const [toolsMissing, setToolsMissing] = useState(false);
   const [infoOpen, setInfoOpen] = useState(false);
+  const [joinItems, setJoinItems] = useState<JoinItem[]>([]);
+  const addToJoin = (path: string) => {
+    setJoinItems((old) => [...old, { path }]);
+    api.probeMedia(path).then(
+      (info) => setJoinItems((old) => old.map((it) => (it.path === path && !it.info ? { ...it, info } : it))),
+      (e) => setJoinItems((old) => old.map((it) => (it.path === path && !it.info ? { ...it, error: cleanError(e) } : it))),
+    );
+  };
 
   const refreshTools = async () => {
     const tools = await api.getTools();
@@ -73,7 +82,8 @@ function App() {
         )}
         {view === 'download' && <DownloadView settings={settings} onQueued={() => setView('queue')} />}
         {view === 'editor' && <EditorView media={media} error={mediaError} onOpen={openMedia} onQueued={() => setView('queue')} />}
-        {view === 'queue' && <QueueView jobs={jobs} onOpen={openMedia} />}
+        {view === 'join' && <JoinView items={joinItems} setItems={setJoinItems} onQueued={() => setView('queue')} />}
+        {view === 'queue' && <QueueView jobs={jobs} onOpen={openMedia} onAddToJoin={addToJoin} joinPaths={joinItems.map((it) => it.path)} />}
         {view === 'settings' && <SettingsView settings={settings} onChange={setSettings} onToolsChanged={refreshTools} />}
       </main>
       {infoOpen && <InfoDialog version={api.version} onClose={() => setInfoOpen(false)} />}

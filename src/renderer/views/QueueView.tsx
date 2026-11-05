@@ -19,7 +19,9 @@ function detail(job: Job): string {
   return parts.filter(Boolean).join(', ');
 }
 
-export function QueueView({ jobs, onOpen }: { jobs: Job[]; onOpen(path: string): void }) {
+const AUDIO_EXT = /\.(mp3|m4a|opus|ogg|flac|wav|aac|mka)$/i;
+
+export function QueueView({ jobs, onOpen, onAddToJoin, joinPaths }: { jobs: Job[]; onOpen(path: string): void; onAddToJoin(path: string): void; joinPaths: string[] }) {
   return (
     <div className="narrow">
       <h1>{t('q.title')}</h1>
@@ -45,6 +47,9 @@ export function QueueView({ jobs, onOpen }: { jobs: Job[]; onOpen(path: string):
               <>
                 <button className="btn" onClick={() => onOpen(job.outputPath!)}>{t('q.open')}</button>
                 <button className="btn" onClick={() => api.showInFolder(job.outputPath!)}>{t('q.show')}</button>
+                {AUDIO_EXT.test(job.outputPath) && (joinPaths.includes(job.outputPath)
+                  ? <span className="ok small" style={{ alignSelf: 'center' }}>{t('join.added')}</span>
+                  : <button className="btn" onClick={() => onAddToJoin(job.outputPath!)}>{t('q.addToJoin')}</button>)}
               </>
             )}
             {job.kind === 'download' && (job.status === 'running' || job.status === 'queued') && <button className="btn" onClick={() => api.pauseJob(job.id)}>{t('q.pause')}</button>}
