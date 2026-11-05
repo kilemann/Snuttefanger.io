@@ -20,12 +20,16 @@ const CONTENT: Record<Language, Content> = {
         'Choose Video and audio or Audio only for each clip. Audio only copies the first audio track without re-encoding.',
         'For audio clips, choose the audio format. Original keeps the audio unchanged. MP3, M4A and Opus play almost everywhere, but cost a little quality.',
         'Select the clip you are working on, and set start and end with the buttons, the keys or the strip.',
+        'The waveform shows where there is sound. Zoom with the + and − buttons or Ctrl + scroll wheel. Snap to silence moves start and end to the quietest point nearby.',
+        'The clips are remembered for each file until you choose Start over.',
         'The original file is never changed. Clips are saved next to it, or in the folder chosen under Settings.',
       ]],
       ['Joining audio', [
         'Add files under Join, or select Add to Join on finished audio clips in the queue.',
         'Put the files in order with the arrows, choose the audio format and select Join.',
         'Files with the same format are joined without re-encoding. Otherwise they are re-encoded to the format you choose.',
+        'Effects: speed, remove silence, even out the volume, fade and crossfade. Effects always need re-encoding.',
+        'Select Listen to the result to hear the result before you export it.',
       ]],
       ['Good to know', [
         'Lossless cutting of video has to start on a keyframe, so a clip can be slightly longer than selected. The queue tells you when this happens.',
@@ -43,6 +47,7 @@ const CONTENT: Record<Language, Content> = {
     ],
     versionsTitle: 'Versions',
     versions: [
+      ['v0.6.0', 'Waveform with zoom and snap to silence. Clips are remembered. Join effects, title and artist, and listening before export. Smaller FFmpeg.'],
       ['v0.5.0', 'New Join menu: join audio files into one, without re-encoding when the formats match.'],
       ['v0.4.0', 'Choose the audio format for each audio clip: Original, MP3, M4A, Opus, FLAC or WAV.'],
       ['v0.3.0', 'Choose Video and audio or Audio only for each clip. Download choices are visible right away. English and Norwegian.'],
@@ -65,12 +70,16 @@ const CONTENT: Record<Language, Content> = {
         'Velg Video og lyd eller Bare lyd for hvert klipp. Bare lyd kopierer første lydspor uten omkoding.',
         'For lydklipp velger du lydformat. Original beholder lyden uendret. MP3, M4A og Opus spilles nesten overalt, men koster litt kvalitet.',
         'Merk hvilket klipp du jobber med, og sett start og slutt med knappene, tastene eller stripen.',
+        'Bølgeformen viser hvor det er lyd. Zoom med knappene + og − eller Ctrl + musehjul. Fest til stillhet flytter start og slutt til det stilleste punktet i nærheten.',
+        'Klippene huskes for hver fil til du velger Start på nytt.',
         'Originalfilen endres aldri. Klippene lagres ved siden av den, eller i mappen du har valgt under Innstillinger.',
       ]],
       ['Slik skjøter du lyd', [
         'Legg til filer under Skjøt, eller velg Legg til i Skjøt på ferdige lydklipp i køen.',
         'Sett filene i rekkefølge med pilene, velg lydformat og velg Skjøt.',
         'Filer med samme format skjøtes uten omkoding. Ellers kodes de om til formatet du velger.',
+        'Effekter: hastighet, fjern stillhet, utjevn lydnivå, fade og krysstoning. Effekter krever alltid omkoding.',
+        'Velg Lytt til resultatet for å høre resultatet før du eksporterer.',
       ]],
       ['Godt å vite', [
         'Tapsfri klipping av video må starte på en keyframe, så klippet kan bli litt lengre enn valgt. Køen viser når det skjer.',
@@ -88,6 +97,7 @@ const CONTENT: Record<Language, Content> = {
     ],
     versionsTitle: 'Versjoner',
     versions: [
+      ['v0.6.0', 'Bølgeform med zoom og fest til stillhet. Klippene huskes. Effekter, tittel og artist, og lytting før eksport i Skjøt. Mindre FFmpeg.'],
       ['v0.5.0', 'Ny Skjøt-meny: skjøt lydfiler til én fil, uten omkoding når formatene er like.'],
       ['v0.4.0', 'Velg lydformat for hvert lydklipp: Original, MP3, M4A, Opus, FLAC eller WAV.'],
       ['v0.3.0', 'Velg Video og lyd eller Bare lyd for hvert klipp. Valgene for nedlasting vises med en gang. Norsk og engelsk.'],

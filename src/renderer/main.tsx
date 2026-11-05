@@ -6,7 +6,8 @@ import { setLanguage, t, tm } from './i18n';
 import { DownloadView } from './views/DownloadView';
 import { EditorView } from './views/EditorView';
 import { InfoDialog } from './views/InfoDialog';
-import { JoinView, type JoinItem } from './views/JoinView';
+import { NO_EFFECTS } from '../shared/types';
+import { JoinView, type JoinState } from './views/JoinView';
 import { QueueView } from './views/QueueView';
 import { SettingsView } from './views/SettingsView';
 
@@ -27,7 +28,10 @@ function App() {
   const [mediaError, setMediaError] = useState<string | null>(null);
   const [toolsMissing, setToolsMissing] = useState(false);
   const [infoOpen, setInfoOpen] = useState(false);
-  const [joinItems, setJoinItems] = useState<JoinItem[]>([]);
+  // Skjøt-listen og valgene ligger her, så de overlever bytte mellom menyene.
+  const [joinState, setJoinState] = useState<JoinState>({ items: [], format: null, effects: { ...NO_EFFECTS } });
+  const joinItems = joinState.items;
+  const setJoinItems = (f: (old: JoinState['items']) => JoinState['items']) => setJoinState((s) => ({ ...s, items: f(s.items) }));
   const addToJoin = (path: string) => {
     setJoinItems((old) => [...old, { path }]);
     api.probeMedia(path).then(
@@ -82,7 +86,7 @@ function App() {
         )}
         {view === 'download' && <DownloadView settings={settings} onQueued={() => setView('queue')} />}
         {view === 'editor' && <EditorView media={media} error={mediaError} onOpen={openMedia} onQueued={() => setView('queue')} />}
-        {view === 'join' && <JoinView items={joinItems} setItems={setJoinItems} onQueued={() => setView('queue')} />}
+        {view === 'join' && <JoinView state={joinState} setState={setJoinState} onQueued={() => setView('queue')} />}
         {view === 'queue' && <QueueView jobs={jobs} onOpen={openMedia} onAddToJoin={addToJoin} joinPaths={joinItems.map((it) => it.path)} />}
         {view === 'settings' && <SettingsView settings={settings} onChange={setSettings} onToolsChanged={refreshTools} />}
       </main>

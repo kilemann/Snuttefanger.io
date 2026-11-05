@@ -13,7 +13,7 @@ A Windows app that downloads video and audio with yt-dlp and cuts files lossless
 | Look | Tidy and dark | Fluent is not required, and the light theme was dropped. |
 | Language | English and Norwegian | Decided by Kilemann in v0.3. The main process sends messages as keys, and the GUI translates them when they are shown. |
 | Settings | JSON | SQLite is considered first for history in phase 4. |
-| FFmpeg, yt-dlp and Deno | Downloaded on first start | Not in the repository or the exe. SHA-256 is verified. yt-dlp is updated separately. |
+| FFmpeg, yt-dlp and Deno | Downloaded on first start (shared FFmpeg build on Windows) | Not in the repository or the exe. SHA-256 is verified. yt-dlp is updated separately. |
 | Packaging | Portable exe in GitHub Releases | No installer or code signing. SmartScreen may warn. |
 | App updates | Notification only | Planned for phase 5. |
 
@@ -32,7 +32,9 @@ The main process owns everything that touches files and processes. The GUI runs 
 | `DownloaderService` | yt-dlp arguments and parsing of its output |
 | `MediaProbeService` | ffprobe information about files |
 | `ExportService` | Cutting and file names |
-| `JoinService` | Joining audio files, lossless or re-encoded |
+| `JoinService` | Joining audio files, lossless or re-encoded, with effects and preview |
+| `WaveformService` | Peaks for the waveform, 100 per second |
+| `ProjectStore` | Clips remembered per file |
 
 Planned: `WaveformService` in phase 3 and `HistoryService` in phase 4. The timeline belongs in the GUI.
 
@@ -59,7 +61,7 @@ Done in v0.2 and v0.3: up to 10 clips from the same file as separate files, with
 Timeline with zoom, video-only export, and preview of formats Chromium does not support.
 
 ### Phase 3: precision
-Done in v0.4 and v0.5: audio format per clip with exact cuts when re-encoding, and joining of audio files with a compatibility check (lossless when possible). Video joining is postponed by Kilemann's decision. Remaining: waveform and precise mode for video. Smart cut is considered afterwards.
+Done in v0.4 and v0.5: audio format per clip with exact cuts when re-encoding, and joining of audio files with a compatibility check (lossless when possible). Video joining is postponed by Kilemann's decision. v0.6 added the waveform with zoom and snap to silence, remembered clips, and join effects (speed, silence removal, loudness, fades, crossfade) with preview. Remaining: precise mode for video. Smart cut is considered afterwards.
 
 ### Phase 4: downloader (v0.5)
 Playlists, subtitles, history, cookies for videos that require sign-in, and resuming after a restart. Cookies must never end up in Git or logs.

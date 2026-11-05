@@ -87,10 +87,39 @@ export interface CutRequest {
   audioFormat?: AudioTarget;
 }
 
+export interface JoinEffects {
+  /** Avspillingshastighet uten endret tonehøyde, 0.5–2. */
+  speed: number;
+  /** Fjerner stillhet i starten og slutten av hver fil. */
+  trimSilence: boolean;
+  /** Utjevner lydnivået (EBU R128). */
+  normalize: boolean;
+  fadeIn: number;
+  fadeOut: number;
+  /** Krysstoning mellom filene i sekunder. 0 betyr rett skjøt. */
+  crossfade: number;
+  title: string;
+  artist: string;
+  cover: boolean;
+}
+
+export const NO_EFFECTS: JoinEffects = { speed: 1, trimSilence: false, normalize: false, fadeIn: 0, fadeOut: 0, crossfade: 0, title: '', artist: '', cover: true };
+
 export interface JoinRequest {
   inputs: string[];
   format: AudioTarget;
+  effects?: JoinEffects;
 }
+
+export interface Waveform { peaksPerSecond: number; peaks: Uint8Array; maxPeak: number }
+
+export interface ClipProject {
+  count: number;
+  active: number;
+  clips: { start: number; end: number; mode: CutMode; fmt: AudioTarget }[];
+}
+
+export interface PreviewResult { src: string; durationSeconds: number; path: string }
 
 export interface CutBatch {
   input: string;
@@ -137,6 +166,14 @@ export interface SnuttApi {
   getTools(): Promise<ToolStatus[]>;
   installTools(): Promise<ToolStatus[]>;
   updateYtDlp(): Promise<ToolStatus[]>;
+  updateFfmpeg(): Promise<ToolStatus[]>;
+  previewJoin(request: JoinRequest): Promise<PreviewResult | null>;
+  stopPreview(): Promise<void>;
+  getWaveform(path: string): Promise<Waveform>;
+  loadProject(path: string): Promise<ClipProject | null>;
+  saveProject(path: string, project: ClipProject): Promise<void>;
+  forgetProject(path: string): Promise<void>;
+  onPreview(listener: (percent: number) => void): () => void;
   fetchUrlInfo(url: string): Promise<UrlInfo>;
   startDownload(request: DownloadRequest): Promise<void>;
   pickMedia(): Promise<string | null>;

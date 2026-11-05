@@ -5,6 +5,8 @@ export interface RunningProcess { result: Promise<ProcessResult>; stop(): void; 
 
 export interface RunOptions {
   onStdoutLine?: (line: string) => void;
+  /** Rå bytes fra stdout, for eksempel lydsampler. Da tolkes ikke stdout som tekst. */
+  onStdoutData?: (chunk: Buffer) => void;
   onStderrLine?: (line: string) => void;
   keepOutput?: boolean;
   timeoutMs?: number;
@@ -60,7 +62,8 @@ export function runProcess(command: string, args: string[], options: RunOptions 
     let stderr = '';
     const out = lineSplitter(options.onStdoutLine);
     const err = lineSplitter(options.onStderrLine);
-    child.stdout!.setEncoding('utf8').on('data', (t: string) => { if (options.keepOutput) stdout += t; out.push(t); });
+    if (options.onStdoutData) child.stdout!.on('data', options.onStdoutData);
+    else child.stdout!.setEncoding('utf8').on('data', (t: string) => { if (options.keepOutput) stdout += t; out.push(t); });
     child.stderr!.setEncoding('utf8').on('data', (t: string) => {
       stderr = (stderr + t).slice(-STDERR_LIMIT);
       err.push(t);

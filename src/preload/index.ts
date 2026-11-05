@@ -14,7 +14,9 @@ const api: SnuttApi = {
   version: __APP_VERSION__,
   getSettings: call('settings:get'), saveSettings: call('settings:save'),
   pickFolder: call('dialog:folder'), pickToolFile: call('dialog:tool'),
-  getTools: call('tools:get'), installTools: call('tools:install'), updateYtDlp: call('tools:update-ytdlp'),
+  getTools: call('tools:get'), installTools: call('tools:install'), updateYtDlp: call('tools:update-ytdlp'), updateFfmpeg: call('tools:update-ffmpeg'),
+  previewJoin: call('join:preview'), stopPreview: call('join:preview-stop'), getWaveform: call('waveform:get'),
+  loadProject: call('project:load'), saveProject: call('project:save'), forgetProject: call('project:forget'),
   fetchUrlInfo: call('url:info'), startDownload: call('download:start'),
   pickMedia: call('media:pick'), openMedia: call('media:open'),
   pickMediaMany: call('media:pick-many'), probeMedia: call('media:probe'), startJoin: call('join:start'),
@@ -23,6 +25,6 @@ const api: SnuttApi = {
   getJobs: call('jobs:get'), pauseJob: call('job:pause'), resumeJob: call('job:resume'),
   cancelJob: call('job:cancel'), retryJob: call('job:retry'), removeJob: call('job:remove'),
   showInFolder: call('shell:show'),
-  onJobs: (l) => listen('jobs', l), onInstall: (l) => listen('install', l),
+  onJobs: (l) => listen('jobs', l), onInstall: (l) => listen('install', l), onPreview: (l) => listen('preview', l),
 };
 contextBridge.exposeInMainWorld('snutt', api);

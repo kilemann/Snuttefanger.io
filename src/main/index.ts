@@ -1,14 +1,17 @@
 import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron';
 import { mkdirSync, rmSync } from 'node:fs';
+import { rm } from 'node:fs/promises';
 import { join } from 'node:path';
-import type { CutBatch, CutRequest, DownloadRequest, JoinRequest, InstallState, Job, Settings, ToolName } from '../shared/types';
+import type { ClipProject, CutBatch, CutRequest, DownloadRequest, JoinRequest, PreviewResult, InstallState, Job, Settings, ToolName } from '../shared/types';
 import { languageFromLocale, msg, translate } from '../shared/i18n';
 import { mediaSrc, registerMediaHandler, registerSchemePrivileges } from './protocol';
 import { BinaryManager } from './services/BinaryManager';
 import { DownloadRunner, assertHttpUrl, fetchUrlInfo, type DownloaderDeps } from './services/DownloaderService';
 import { CutRunner, MAX_CLIPS, isAudioTarget, outputExtension, validateCut } from './services/ExportService';
 import { JobQueue } from './services/JobQueue';
-import { JoinRunner, MAX_JOIN, joinPlan } from './services/JoinService';
+import { JoinRunner, MAX_JOIN, joinPlan, renderJoin, sanitizeEffects, type JoinDeps, type RenderControl } from './services/JoinService';
+import { ProjectStore } from './services/ProjectStore';
+import { getWaveform } from './services/WaveformService';
 import { probeMedia } from './services/MediaProbeService';
 import { stopAllProcesses } from './services/ProcessManager';
 import { SettingsService } from './services/SettingsService';
@@ -55,9 +58,11 @@ app.whenReady().then(() => {
     embedThumbnail: () => settings.get().embedThumbnail,
   };
   queue.register('download', new DownloadRunner(deps));
-  queue.register('join', new JoinRunner({
+  const joinDeps: JoinDeps = {
     ffmpeg: () => binaries.require('ffmpeg'), ffprobe: () => binaries.require('ffprobe'), exportDir: () => settings.get().exportDir, language: () => settings.get().language,
-  }));
+  };
+  queue.register('join', new JoinRunner(joinDeps));
+  const projects = new ProjectStore(data);
   queue.register('export', new CutRunner({
     ffmpeg: () => binaries.require('ffmpeg'), ffprobe: () => binaries.require('ffprobe'), exportDir: () => settings.get().exportDir, language: () => settings.get().language,
   }));
@@ -105,11 +110,40 @@ app.whenReady().then(() => {
   ipcMain.handle('join:start', async (_e, req: JoinRequest) => {
     if (!Array.isArray(req.inputs) || req.inputs.length < 2 || req.inputs.length > MAX_JOIN) throw new Error(msg('err.joinCount', { max: MAX_JOIN }));
     if (!isAudioTarget(req.format)) throw new Error(msg('err.mode'));
+    const effects = sanitizeEffects(req.effects);
     const infos = await Promise.all(req.inputs.map((p) => probeMedia(binaries.require('ffprobe'), p)));
-    joinPlan(infos, req.format); // Kaster forståelig feil før noe legges i køen.
+    joinPlan(infos, req.format, effects); // Kaster forståelig feil før noe legges i køen.
     const fmt = req.format === 'original' ? msg('fmt.original') : req.format.toUpperCase();
-    queue.enqueue('join', msg('job.join', { n: req.inputs.length, fmt }), { inputs: [...req.inputs], format: req.format } satisfies JoinRequest);
+    queue.enqueue('join', msg('job.join', { n: req.inputs.length, fmt }), { inputs: [...req.inputs], format: req.format, effects } satisfies JoinRequest);
   });
+  // Forhåndsvisning: samme oppskrift som eksporten, men til en midlertidig fil. Ny forespørsel stopper den forrige.
+  let preview: RenderControl | null = null;
+  let previewFile: string | null = null;
+  ipcMain.handle('join:preview', async (_e, req: JoinRequest): Promise<PreviewResult | null> => {
+    if (preview) { preview.stopped = true; preview.current?.stop(); }
+    if (previewFile) { await rm(previewFile, { force: true }).catch(() => {}); previewFile = null; }
+    if (!Array.isArray(req.inputs) || req.inputs.length < 2 || req.inputs.length > MAX_JOIN) throw new Error(msg('err.joinCount', { max: MAX_JOIN }));
+    if (!isAudioTarget(req.format)) throw new Error(msg('err.mode'));
+    const control: RenderControl = { stopped: false };
+    preview = control;
+    try {
+      const { output, length } = await renderJoin(joinDeps, { ...req, effects: sanitizeEffects(req.effects) },
+        async (ext) => join(tempRoot, `preview-${Date.now()}${ext}`), (percent) => send('preview', percent), control);
+      previewFile = output;
+      return { src: mediaSrc(output), durationSeconds: length, path: output };
+    } catch (err) {
+      if (control.stopped) return null;
+      throw err;
+    } finally {
+      if (preview === control) preview = null;
+    }
+  });
+  ipcMain.handle('join:preview-stop', () => { if (preview) { preview.stopped = true; preview.current?.stop(); } });
+  ipcMain.handle('waveform:get', (_e, path: string) => getWaveform(binaries.require('ffmpeg'), path));
+  ipcMain.handle('project:load', (_e, path: string) => projects.load(path));
+  ipcMain.handle('project:save', (_e, path: string, project: ClipProject) => projects.save(path, project));
+  ipcMain.handle('project:forget', (_e, path: string) => projects.forget(path));
+  ipcMain.handle('tools:update-ffmpeg', async () => { await binaries.install(['ffmpeg', 'ffprobe']); return binaries.status(); });
   ipcMain.handle('media:open', async (_e, path: string) => {
     const info = await probeMedia(binaries.require('ffprobe'), path);
     return { ...info, src: mediaSrc(path) };

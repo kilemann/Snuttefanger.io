@@ -65,6 +65,7 @@ export function SettingsView({ settings, onChange, onToolsChanged }: { settings:
         <div className="row" style={{ marginTop: 12 }}>
           <button className={`btn ${missing ? 'primary' : ''}`} disabled={busy || !missing} onClick={() => runInstall(api.installTools)}>{t('set.install')}</button>
           <button className="btn" disabled={busy} onClick={() => runInstall(api.updateYtDlp)}>{t('set.update')}</button>
+          <button className="btn" disabled={busy} onClick={() => runInstall(api.updateFfmpeg)}>{t('set.updateFfmpeg')}</button>
         </div>
         {!busy && !missing && allWorking && <p className="ok small" style={{ marginTop: 8 }}>{t('set.allInstalled')}</p>}
         {busy && install && (

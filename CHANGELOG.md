@@ -2,6 +2,20 @@
 
 The project uses [semantic versioning](https://semver.org/).
 
+## 0.6.0 (2026-11-05)
+
+### Added
+- Waveform in the Cut tab, with zoom (buttons or Ctrl + scroll wheel) and scrolling when zoomed in.
+- Snap to silence: start and end move to the quietest point within half a second when set with the keys, the buttons or the handles.
+- The clips for each file are remembered and restored the next time you open it, with a button to start over.
+- Join effects: speed 0.5x to 2x without changing the pitch, remove silence at the start and end of each file, even out the volume (EBU R128), fade in, fade out and crossfade between files.
+- Title, artist and cover art on joined files. Cover art is taken from the first file that has it (MP3, M4A and FLAC).
+- Listen to the result in Join before exporting. The preview is made the same way as the export.
+- Update FFmpeg button under Settings.
+
+### Changed
+- On Windows the app uses the shared FFmpeg build. It takes about 190 MB instead of 340 MB on disk and is about 90 MB to download. Choose Update FFmpeg under Settings to switch an existing installation.
+
 ## 0.5.0 (2026-11-05)
 
 ### Added

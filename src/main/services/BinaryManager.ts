@@ -2,7 +2,7 @@ import { msg } from '../../shared/i18n';
 import { createHash } from 'node:crypto';
 import { createWriteStream, existsSync } from 'node:fs';
 import { chmod, copyFile, mkdir, readdir, rename, rm } from 'node:fs/promises';
-import { delimiter, join } from 'node:path';
+import { delimiter, dirname, join } from 'node:path';
 import { Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 import type { InstallState, Settings, ToolName, ToolStatus } from '../../shared/types';
@@ -15,6 +15,8 @@ export interface Asset {
   checksumEntry: string | null;
   archive: 'none' | 'zip' | 'tar';
   provides: ToolName[];
+  /** Andre filer fra samme mappe som må med, for eksempel DLL-ene i det delte FFmpeg-bygget. */
+  companions?: RegExp;
 }
 
 const YTDLP = 'https://github.com/yt-dlp/yt-dlp/releases/latest/download';
@@ -25,7 +27,8 @@ export function assetsFor(platform: NodeJS.Platform): Asset[] {
   if (platform === 'win32') {
     return [
       { url: `${YTDLP}/yt-dlp.exe`, checksumUrl: `${YTDLP}/SHA2-256SUMS`, checksumEntry: 'yt-dlp.exe', archive: 'none', provides: ['ytDlp'] },
-      { url: `${FFMPEG}/ffmpeg-master-latest-win64-gpl.zip`, checksumUrl: `${FFMPEG}/checksums.sha256`, checksumEntry: 'ffmpeg-master-latest-win64-gpl.zip', archive: 'zip', provides: ['ffmpeg', 'ffprobe'] },
+      // Delt bygg: ffmpeg og ffprobe deler DLL-ene, så det tar rundt 190 MB i stedet for 340 MB.
+      { url: `${FFMPEG}/ffmpeg-master-latest-win64-gpl-shared.zip`, checksumUrl: `${FFMPEG}/checksums.sha256`, checksumEntry: 'ffmpeg-master-latest-win64-gpl-shared.zip', archive: 'zip', provides: ['ffmpeg', 'ffprobe'], companions: /^(avcodec|avdevice|avfilter|avformat|avutil|swresample|swscale)-\d+\.dll$/i },
       { url: `${DENO}/deno-x86_64-pc-windows-msvc.zip`, checksumUrl: `${DENO}/deno-x86_64-pc-windows-msvc.zip.sha256sum`, checksumEntry: null, archive: 'zip', provides: ['deno'] },
     ];
   }
@@ -157,6 +160,13 @@ export class BinaryManager {
       for (const name of asset.provides) {
         const found = await findFile(out, FILE_NAMES[name] + this.exe);
         if (!found) throw new Error(msg('err.notInArchive', { tool: FILE_NAMES[name] }));
+        if (asset.companions) {
+          // DLL-ene legges på plass før exe-filene, så ffmpeg aldri står uten dem.
+          const dir = dirname(found);
+          for (const f of await readdir(dir)) {
+            if (asset.companions.test(f)) await this.placeFile(join(dir, f), join(this.binDir, f));
+          }
+        }
         await this.place(found, name);
       }
     } finally {
@@ -165,7 +175,10 @@ export class BinaryManager {
   }
 
   private async place(source: string, name: ToolName): Promise<void> {
-    const target = this.managedPath(name);
+    await this.placeFile(source, this.managedPath(name));
+  }
+
+  private async placeFile(source: string, target: string): Promise<void> {
     const tmp = `${target}.new`;
     await copyFile(source, tmp);
     if (this.platform !== 'win32') await chmod(tmp, 0o755);

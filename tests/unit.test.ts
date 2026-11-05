@@ -8,7 +8,10 @@ import { JobQueue, type JobHandle } from '../src/main/services/JobQueue';
 import { parseProbe } from '../src/main/services/MediaProbeService';
 import { sanitizeSettings } from '../src/main/services/SettingsService';
 import type { DownloadRequest, Job, Settings } from '../src/shared/types';
-import { buildJoinArgs, concatList, joinPlan } from '../src/main/services/JoinService';
+import { buildJoinArgs, buildJoinGraph, concatList, hasEffects, joinPlan, outputLength, parseSilence, sanitizeEffects } from '../src/main/services/JoinService';
+import { PeakCollector } from '../src/main/services/WaveformService';
+import { snapToQuiet } from '../src/shared/waveform';
+import { NO_EFFECTS } from '../src/shared/types';
 import { languageFromLocale, msg, translate, translateMessage } from '../src/shared/i18n';
 
 const tools = { ffmpeg: '/x/ffmpeg', deno: '/x/deno' };
@@ -261,5 +264,64 @@ test('skjøting: concat-listen tåler apostrof, og omkoding bygger én filtergra
   assert.deepEqual(copy.slice(copy.indexOf('-f'), copy.indexOf('-f') + 6), ['-f', 'concat', '-safe', '0', '-i', '/l.txt']);
   const enc = buildJoinArgs(['/a', '/b', '/c'], '/l.txt', { ext: '.mp3', method: 'encode', encode: ['-c:a', 'libmp3lame'], sampleRate: 44100, channels: 1 }, '/ut.mp3');
   assert.equal(enc.filter((x) => x === '-i').length, 3);
-  assert.match(enc[enc.indexOf('-filter_complex') + 1], /aresample=44100.*channel_layouts=mono.*\[a0\]\[a1\]\[a2\]concat=n=3:v=0:a=1\[out\]$/);
+  assert.match(enc[enc.indexOf('-filter_complex') + 1], /aresample=44100.*channel_layouts=mono.*\[a0\]\[a1\]\[a2\]concat=n=3:v=0:a=1\[j\];\[j\]anull\[out\]$/);
+});
+
+test('delt FFmpeg-bygg: DLL-ene følger med, men ikke ffplay', () => {
+  const ff = assetsFor('win32').find((a) => a.provides.includes('ffmpeg'))!;
+  assert.match(ff.url, /win64-gpl-shared\.zip$/);
+  for (const f of ['avcodec-63.dll', 'avformat-63.dll', 'avutil-61.dll', 'swresample-7.dll', 'avfilter-12.dll', 'swscale-10.dll', 'avdevice-63.dll']) assert.ok(ff.companions!.test(f), f);
+  for (const f of ['ffplay.exe', 'ffmpeg.exe', 'evil.dll', 'avcodec.dll.exe']) assert.ok(!ff.companions!.test(f), f);
+  assert.equal(assetsFor('linux').find((a) => a.provides.includes('ffmpeg'))!.companions, undefined);
+});
+
+test('effekter: bare lydendringer krever omkoding, og ugyldige verdier rettes', () => {
+  assert.equal(hasEffects(NO_EFFECTS), false);
+  assert.equal(hasEffects({ ...NO_EFFECTS, title: 'x', cover: false }), false);
+  assert.equal(hasEffects({ ...NO_EFFECTS, speed: 1.5 }), true);
+  const e = sanitizeEffects({ speed: 3, fadeIn: -2, fadeOut: 99, crossfade: Number.NaN, title: 'a\nb', trimSilence: 'ja' as never });
+  assert.deepEqual([e.speed, e.fadeIn, e.fadeOut, e.crossfade, e.title, e.trimSilence], [1, 0, 30, 0, 'a b', false]);
+  const opus = [audioInfo('/a.opus', 'opus'), audioInfo('/b.opus', 'opus')];
+  assert.throws(() => joinPlan(opus, 'original', { ...NO_EFFECTS, normalize: true }), /joinEffectsOriginal/);
+  assert.equal(joinPlan(opus, 'opus', { ...NO_EFFECTS, fadeIn: 1 }).method, 'encode', 'samme format, men effekt: må kodes om');
+});
+
+test('stillhet: start og slutt finnes, 0,1 s beholdes, og en helt stille fil beholdes', () => {
+  const log = 'silence_start: 0\nsilence_end: 1.5 | silence_duration: 1.5\nsilence_start: 3.2\nsilence_end: 3.6 | silence_duration: 0.4\nsilence_start: 8.4';
+  assert.deepEqual(parseSilence(log, 10), { start: 1.4, end: 8.5 });
+  assert.deepEqual(parseSilence('silence_start: 0\nsilence_end: 10 | x', 10), { start: 0, end: 10 });
+  assert.deepEqual(parseSilence('', 10), { start: 0, end: 10 });
+  // Stillhet bare i midten røres ikke.
+  assert.deepEqual(parseSilence('silence_start: 4\nsilence_end: 5 | x', 10), { start: 0, end: 10 });
+  // FFmpeg kan avslutte siste stillhet nøyaktig ved filslutt.
+  assert.deepEqual(parseSilence('silence_start: 9\nsilence_end: 10 | x', 10), { start: 0, end: 9.1 });
+});
+
+test('effektgrafen: krysstoning, hastighet, utjevning og fade i riktig rekkefølge', () => {
+  const plan = { ext: '.mp3', method: 'encode' as const, encode: ['-c:a', 'libmp3lame'], sampleRate: 44100, channels: 2 };
+  const fx = { ...NO_EFFECTS, speed: 2, normalize: true, fadeIn: 1, fadeOut: 2, crossfade: 1 };
+  const g = buildJoinGraph(3, plan, fx, [{ start: 0.5, end: 4 }, { start: 0, end: 4 }, { start: 0, end: 4 }], [4, 4, 4]);
+  assert.match(g, /\[0:a:0\]atrim=start=0\.5:end=4,asetpts=PTS-STARTPTS,aresample=44100/);
+  assert.match(g, /\[a0\]\[a1\]acrossfade=d=1:c1=tri:c2=tri\[x1\];\[x1\]\[a2\]acrossfade=d=1/);
+  // (3,5 + 4 + 4 − 2 krysstoninger) / 2 = 4,75 s, så fade ut starter på 2,75.
+  assert.match(g, /\[x2\]atempo=2,loudnorm=I=-16:TP=-1\.5:LRA=11,aresample=44100,afade=t=in:st=0:d=1,afade=t=out:st=2\.75:d=2\[out\]$/);
+  assert.equal(outputLength([{ start: 0, end: 4 }, { start: 0, end: 4 }], { ...NO_EFFECTS, speed: 0.5 }), 16);
+  const plain = buildJoinGraph(2, plan, NO_EFFECTS, null, [4, 4]);
+  assert.match(plain, /concat=n=2:v=0:a=1\[j\];\[j\]anull\[out\]$/);
+  const args = buildJoinArgs(['/a', '/b'], '/l', plan, '/o.mp3', { ...NO_EFFECTS, title: 'Min mix', artist: 'Meg' }, null, [4, 4], { path: '/a', index: 1 });
+  assert.deepEqual(args.slice(args.indexOf('-map'), args.indexOf('-map') + 8), ['-map', '[out]', '-map', '2:1', '-c:v', 'copy', '-disposition:v:0', 'attached_pic']);
+  assert.ok(args.includes('title=Min mix') && args.includes('artist=Meg'));
+});
+
+test('bølgeform: topper per 10 ms, også når sampler deles mellom bitene', () => {
+  const pc = new PeakCollector();
+  const buf = Buffer.alloc(80 * 2 * 3);
+  buf.writeInt16LE(-32768, 10);
+  buf.writeInt16LE(8192, 80 * 2 + 4);
+  pc.push(buf.subarray(0, 161)); pc.push(buf.subarray(161));
+  assert.deepEqual([...pc.finish()], [255, 128, 0]);
+  const wave = { peaksPerSecond: 100, peaks: Uint8Array.from([90, 80, 70, 5, 60, 5, 90, 90]), maxPeak: 90 };
+  assert.equal(snapToQuiet(wave, 0.04, 0.03), 0.03, 'nærmeste av to like stille punkter');
+  assert.equal(snapToQuiet(wave, 0.07, 0.01), 0.07);
+  assert.equal(snapToQuiet({ peaksPerSecond: 100, peaks: new Uint8Array(), maxPeak: 0 }, 1.23), 1.23);
 });

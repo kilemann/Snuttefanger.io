@@ -11,7 +11,7 @@ const assert = require('node:assert/strict');
   const [electron, binDir, shots] = process.argv.slice(2);
   const root = mkdtempSync(join(tmpdir(), 'snutt-e2e-'));
   const file = join(root, 'Prøvefilm æøå.mp4');
-  execFileSync(join(binDir, 'ffmpeg'), ['-hide_banner', '-loglevel', 'error', '-f', 'lavfi', '-i', 'testsrc2=size=1280x720:rate=25', '-f', 'lavfi', '-i', 'sine=frequency=330', '-t', '20', '-c:v', 'libx264', '-g', '50', '-pix_fmt', 'yuv420p', '-c:a', 'aac', file]);
+  execFileSync(join(binDir, 'ffmpeg'), ['-hide_banner', '-loglevel', 'error', '-f', 'lavfi', '-i', 'testsrc2=size=1280x720:rate=25', '-f', 'lavfi', '-i', "sine=frequency=330,volume='if(lt(mod(t,4),2.5),1,0.01)':eval=frame", '-t', '20', '-c:v', 'libx264', '-g', '50', '-pix_fmt', 'yuv420p', '-c:a', 'aac', file]);
   const server = createServer((_q, r) => { r.writeHead(200, { 'Content-Type': 'video/mp4', 'Content-Length': statSync(file).size }); createReadStream(file).pipe(r); });
   await new Promise((r) => server.listen(0, '127.0.0.1', r));
   const url = `http://127.0.0.1:${server.address().port}/snutt.mp4`;
@@ -53,6 +53,16 @@ const assert = require('node:assert/strict');
   assert.ok(seeked.t > 12 && seeked.w === 1280 && seeked.d > 19, JSON.stringify(seeked));
 
   // Klipp med hurtigtaster og tekstfelt
+  // Bølgeform, zoom og fest til stillhet
+  await page.locator('canvas.strip-wave').waitFor({ timeout: 20000 });
+  await page.getByRole('button', { name: 'Zoom in' }).click();
+  await page.getByRole('button', { name: 'Zoom in' }).click();
+  await page.getByRole('button', { name: 'Show all' }).waitFor();
+  assert.ok(await page.getByRole('button', { name: 'Show all' }).isEnabled(), 'zoomet inn');
+  await page.screenshot({ path: join(shots, '11-zoom.png') });
+  await page.getByRole('button', { name: 'Show all' }).click();
+  await page.getByLabel('Snap to silence').check();
+  await page.getByLabel('Snap to silence').uncheck();
   await page.getByLabel('Number of clips').selectOption('3');
   const setClip = async (n, a, b) => {
     await page.getByRole('textbox', { name: `Start clip ${n}` }).fill(a);
@@ -104,13 +114,25 @@ const assert = require('node:assert/strict');
   // Køen viser nyeste først, så klipp 3 ble lagt til først. Flytt klipp 2 opp.
   await page.getByRole('button', { name: 'Move up 2' }).click();
   await page.screenshot({ path: join(shots, '10-skjot.png') });
+  // Effekter, tittel og forhåndsvisning: 9,5 s ved 1,5x blir 6,33 s
+  await page.getByLabel('Speed').selectOption('1.5');
+  assert.equal(await page.locator('select[aria-label="Audio format"] option[value="original"]').count(), 0);
+  await page.getByLabel('Title').fill('Min mix');
+  await page.getByRole('button', { name: 'Listen to the result' }).click();
+  await page.locator('audio.preview').waitFor({ timeout: 30000 });
+  await page.waitForFunction(() => document.querySelector('audio.preview').readyState >= 1, null, { timeout: 15000 });
+  const previewLength = await page.evaluate(() => document.querySelector('audio.preview').duration);
+  assert.ok(Math.abs(previewLength - 6.33) < 0.2, `forhåndsvisning ${previewLength}`);
+  await page.screenshot({ path: join(shots, '12-skjot-effekter.png') });
   await page.getByRole('button', { name: 'Join 2 files' }).click();
   await page.waitForFunction(() => document.querySelectorAll('.job[data-status=done]').length === 5, null, { timeout: 40000 });
   const joined = readdirSync(join(root, 'ned')).filter((f) => f.includes('(joined)'));
   assert.equal(joined.length, 1, readdirSync(join(root, 'ned')).join());
   assert.ok(joined[0].endsWith('.mp3') && joined[0].includes('(audio clip 00.00.06-00.00.09) (joined)'), joined[0]);
   const joinedLength = Number(execFileSync(join(binDir, 'ffprobe'), ['-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', join(root, 'ned', joined[0])]).toString());
-  assert.ok(Math.abs(joinedLength - 9.5) < 0.2, `skjøtet lengde ${joinedLength}`);
+  assert.ok(Math.abs(joinedLength - 6.33) < 0.2, `skjøtet lengde ${joinedLength}`);
+  const title = execFileSync(join(binDir, 'ffprobe'), ['-v', 'error', '-show_entries', 'format_tags=title', '-of', 'csv=p=0', join(root, 'ned', joined[0])]).toString().trim();
+  assert.equal(title, 'Min mix');
   for (const f of made) {
     const out = execFileSync(join(binDir, 'ffprobe'), ['-v', 'error', '-show_entries', 'format=start_time', '-of', 'csv=p=0', join(root, 'ned', f)]).toString();
     assert.ok(Number(out) < 0.25, `${f} starter på ${out}`);
@@ -121,6 +143,12 @@ const assert = require('node:assert/strict');
   await page.getByRole('button', { name: 'Cut', exact: true }).click();
   await page.getByRole('button', { name: 'Open another file' }).click();
   await page.getByRole('heading', { name: 'Prøvefilm æøå.mp4' }).waitFor();
+  // Tilbake til den første filen: de tre klippene er husket
+  await page.getByRole('button', { name: 'Queue' }).click();
+  await page.getByRole('button', { name: 'Open in cutter' }).last().click();
+  await page.getByText('The clips from last time were restored.').waitFor({ timeout: 15000 });
+  assert.equal(await page.getByLabel('Number of clips').inputValue(), '3');
+  assert.equal(await page.getByRole('textbox', { name: 'Start clip 3' }).inputValue(), '00:00:12.000');
 
   await page.getByRole('button', { name: 'Settings' }).click();
   await page.getByRole('heading', { name: 'Tools' }).waitFor();

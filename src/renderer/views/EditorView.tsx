@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type DragEvent, type PointerEvent as ReactPointerEvent } from 'react';
-import { AUDIO_TARGETS, type AudioTarget, type CutMode, type MediaStream, type OpenedMedia } from '../../shared/types';
+import { AUDIO_TARGETS, type AudioTarget, type CutMode, type MediaStream, type OpenedMedia, type Waveform } from '../../shared/types';
+import { snapToQuiet } from '../../shared/waveform';
 import { cleanError } from '../main';
 import { formatBytes, formatTime, parseTime } from '../format';
 import { t } from '../i18n';
@@ -20,6 +21,45 @@ function describe(s: MediaStream): string {
 }
 
 const MAX_CLIPS = 10;
+const MIN_SPAN = 1;
+
+/** Tegner bølgeformen for synlig del av tidslinjen. Høyeste topp per skjermpiksel, speilet rundt midten. */
+function WaveCanvas({ wave, viewStart, viewSpan }: { wave: Waveform; viewStart: number; viewSpan: number }) {
+  const ref = useRef<HTMLCanvasElement>(null);
+  const [width, setWidth] = useState(0);
+  useEffect(() => {
+    const el = ref.current!;
+    const ro = new ResizeObserver(() => setWidth(el.clientWidth));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || width === 0) return;
+    const dpr = window.devicePixelRatio || 1;
+    const h = el.clientHeight;
+    el.width = Math.round(width * dpr);
+    el.height = Math.round(h * dpr);
+    const ctx = el.getContext('2d')!;
+    ctx.scale(dpr, dpr);
+    ctx.clearRect(0, 0, width, h);
+    ctx.fillStyle = getComputedStyle(el).color;
+    const { peaks, peaksPerSecond: pps } = wave;
+    const mid = h / 2;
+    const maxH = h / 2 - 14;
+    // Skaleres etter høyeste topp i filen, så også svake opptak fyller stripen.
+    const top = Math.max(1, wave.maxPeak);
+    for (let x = 0; x < width; x++) {
+      const from = Math.floor((viewStart + (x / width) * viewSpan) * pps);
+      const to = Math.max(from + 1, Math.floor((viewStart + ((x + 1) / width) * viewSpan) * pps));
+      let peak = 0;
+      for (let i = from; i < to && i < peaks.length; i++) if (peaks[i] > peak) peak = peaks[i];
+      const y = Math.max(0.5, (peak / top) * maxH);
+      ctx.fillRect(x, mid - y, 1, y * 2);
+    }
+  }, [wave, viewStart, viewSpan, width]);
+  return <canvas ref={ref} className="strip-wave" aria-hidden="true" />;
+}
 interface Clip { start: number; end: number; mode: CutMode; fmt: AudioTarget; }
 
 function TimeField({ label, value, onCommit, onFocus }: { label: string; value: number; onCommit(v: number): void; onFocus(): void }) {
@@ -91,6 +131,39 @@ function Cutter({ media, onQueued }: { media: OpenedMedia; onQueued(): void }) {
   const [playing, setPlaying] = useState(false);
   const [unplayable, setUnplayable] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [wave, setWave] = useState<Waveform | null>(null);
+  const [waveLoading, setWaveLoading] = useState(hasAudio);
+  const [snap, setSnap] = useState(false);
+  const [view, setView] = useState({ start: 0, span: duration });
+  const [restored, setRestored] = useState(false);
+  const loaded = useRef(false);
+
+  useEffect(() => {
+    if (!hasAudio) return;
+    let alive = true;
+    api.getWaveform(media.path).then((w) => { if (alive) setWave(w); }, () => {}).finally(() => { if (alive) setWaveLoading(false); });
+    return () => { alive = false; };
+  }, [media.path, hasAudio]);
+
+  // Klippene huskes per fil, så du kan fortsette der du slapp.
+  useEffect(() => {
+    let alive = true;
+    api.loadProject(media.path).then((p) => {
+      if (!alive) return;
+      if (p && p.clips.length > 0) {
+        const fixed = p.clips.map((c) => {
+          const start = Math.min(Math.max(0, c.start), Math.max(0, duration - 0.01));
+          return { start, end: Math.min(duration, Math.max(c.end, start + 0.01)), mode: c.mode === 'audio' ? 'audio' as const : 'av' as const, fmt: AUDIO_TARGETS.includes(c.fmt) ? c.fmt : 'original' as const };
+        });
+        setClips(fixed);
+        setCount(Math.min(Math.max(1, p.count), fixed.length));
+        setActive(Math.min(Math.max(0, p.active), fixed.length - 1));
+        setRestored(true);
+      }
+      loaded.current = true;
+    }, () => { loaded.current = true; });
+    return () => { alive = false; };
+  }, [media.path, duration]);
 
   const clamp = useCallback((v: number) => Math.min(duration, Math.max(0, v)), [duration]);
   const seek = useCallback((v: number) => {
@@ -101,6 +174,7 @@ function Cutter({ media, onQueued }: { media: OpenedMedia; onQueued(): void }) {
   const update = useCallback((i: number, change: (c: Clip) => Clip) => setClips((all) => all.map((c, n) => n === i ? change(c) : c)), []);
   const setIn = useCallback((i: number, v: number) => update(i, (c) => ({ ...c, start: Math.min(clamp(v), c.end - 0.01) })), [clamp, update]);
   const setOut = useCallback((i: number, v: number) => update(i, (c) => ({ ...c, end: Math.max(clamp(v), c.start + 0.01) })), [clamp, update]);
+  const snapT = useCallback((v: number) => (snap && wave ? snapToQuiet(wave, v) : v), [snap, wave]);
   const toggle = useCallback(() => {
     const v = ref.current;
     if (!v || unplayable) return;
@@ -120,6 +194,49 @@ function Cutter({ media, onQueued }: { media: OpenedMedia; onQueued(): void }) {
     setActive((a) => Math.min(a, next - 1));
   };
   const selectClip = (i: number) => { setActive(i); seek(clips[i].start); };
+
+  useEffect(() => {
+    if (!loaded.current) return;
+    const timer = setTimeout(() => { void api.saveProject(media.path, { count, active, clips }).catch(() => {}); }, 600);
+    return () => clearTimeout(timer);
+  }, [clips, count, active, media.path]);
+
+  const resetProject = async () => {
+    await api.forgetProject(media.path).catch(() => {});
+    setClips([{ start: 0, end: duration, mode: 'av', fmt: 'original' }]);
+    setCount(1); setActive(0); setRestored(false);
+  };
+
+  // Zoom rundt et ankerpunkt (markøren eller avspillingen), så det du ser på blir stående.
+  const zoom = useCallback((factor: number, anchor: number) => setView((v) => {
+    const span = Math.min(duration, Math.max(Math.min(MIN_SPAN, duration), v.span * factor));
+    const rel = v.span > 0 ? (anchor - v.start) / v.span : 0;
+    const start = Math.min(Math.max(0, anchor - rel * span), duration - span);
+    return { start, span };
+  }), [duration]);
+  const pan = useCallback((seconds: number) => setView((v) => ({ ...v, start: Math.min(Math.max(0, v.start + seconds), duration - v.span) })), [duration]);
+  const zoomed = view.span < duration - 0.001;
+
+  // Følg avspillingen når den går ut av synlig del.
+  useEffect(() => {
+    if (!zoomed) return;
+    if (time < view.start || time > view.start + view.span) {
+      setView((v) => ({ ...v, start: Math.min(Math.max(0, time - v.span * 0.1), duration - v.span) }));
+    }
+  }, [time, zoomed, view.start, view.span, duration]);
+
+  useEffect(() => {
+    const el = stripRef.current;
+    if (!el) return;
+    const onWheel = (e: WheelEvent) => {
+      const r = el.getBoundingClientRect();
+      const anchor = view.start + ((e.clientX - r.left) / r.width) * view.span;
+      if (e.ctrlKey || e.metaKey) { e.preventDefault(); zoom(e.deltaY < 0 ? 0.8 : 1.25, anchor); }
+      else if (zoomed) { e.preventDefault(); pan(((e.deltaY + e.deltaX) / r.width) * view.span); }
+    };
+    el.addEventListener('wheel', onWheel, { passive: false });
+    return () => el.removeEventListener('wheel', onWheel);
+  }, [view, zoom, pan, zoomed]);
   const visible = clips.slice(0, count);
   const formatColumn = showFormat && visible.some(isAudioClip);
 
@@ -133,18 +250,18 @@ function Cutter({ media, onQueued }: { media: OpenedMedia; onQueued(): void }) {
         if (e.target instanceof HTMLButtonElement) return; // Mellomrom trykker på knappen som har fokus.
         e.preventDefault(); toggle();
       }
-      else if (e.key === 'i' || e.key === 'I') setIn(active, now);
-      else if (e.key === 'o' || e.key === 'O') setOut(active, now);
+      else if (e.key === 'i' || e.key === 'I') setIn(active, snapT(now));
+      else if (e.key === 'o' || e.key === 'O') setOut(active, snapT(now));
       else if (e.key === 'ArrowLeft') { e.preventDefault(); seek(now - (e.shiftKey ? 10 : 1)); }
       else if (e.key === 'ArrowRight') { e.preventDefault(); seek(now + (e.shiftKey ? 10 : 1)); }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [time, active, toggle, setIn, setOut, seek]);
+  }, [time, active, toggle, setIn, setOut, seek, snapT]);
 
   const fromPointer = (clientX: number) => {
     const r = stripRef.current!.getBoundingClientRect();
-    return clamp(((clientX - r.left) / r.width) * duration);
+    return clamp(view.start + ((clientX - r.left) / r.width) * view.span);
   };
   const drag = (apply: (v: number) => void) => (e: ReactPointerEvent) => {
     e.preventDefault(); e.stopPropagation();
@@ -154,7 +271,7 @@ function Cutter({ media, onQueued }: { media: OpenedMedia; onQueued(): void }) {
     window.addEventListener('pointermove', move);
     window.addEventListener('pointerup', up);
   };
-  const pct = (v: number) => `${(v / duration) * 100}%`;
+  const pct = (v: number) => `${((v - view.start) / view.span) * 100}%`;
 
   const exportCuts = async () => {
     setError(null);
@@ -183,16 +300,34 @@ function Cutter({ media, onQueued }: { media: OpenedMedia; onQueued(): void }) {
             onError={() => setUnplayable(true)} onClick={toggle} />
         )}
       </div>
-      <div className="strip" ref={stripRef} onPointerDown={drag(seek)} aria-label={t('cut.strip')}>
+      <div className={`strip ${hasAudio ? 'has-wave' : ''}`} ref={stripRef} onPointerDown={drag(seek)} aria-label={t('cut.strip')}>
+        {wave && <WaveCanvas wave={wave} viewStart={view.start} viewSpan={view.span} />}
         {visible.map((c, i) => (
           <div key={i} className={`strip-sel ${i === active ? 'active' : ''}`} style={{ left: pct(c.start), width: `calc(${pct(c.end)} - ${pct(c.start)})`, zIndex: i === active ? 2 : 1 }}>
             {count > 1 ? i + 1 : ''}{canChoose && c.mode === 'audio' ? ' ♪' : ''}{isAudioClip(c) && c.fmt !== 'original' ? ` ${c.fmt.toUpperCase()}` : ''}
           </div>
         ))}
         <div className="strip-head" style={{ left: pct(time), zIndex: 3 }} />
-        <button className="strip-handle" style={{ left: pct(clips[active].start), zIndex: 4 }} aria-label={t('cut.dragStart')} onPointerDown={drag((v) => setIn(active, v))} />
-        <button className="strip-handle" style={{ left: pct(clips[active].end), zIndex: 4 }} aria-label={t('cut.dragEnd')} onPointerDown={drag((v) => setOut(active, v))} />
+        <button className="strip-handle" style={{ left: pct(clips[active].start), zIndex: 4 }} aria-label={t('cut.dragStart')} onPointerDown={drag((v) => setIn(active, snapT(v)))} />
+        <button className="strip-handle" style={{ left: pct(clips[active].end), zIndex: 4 }} aria-label={t('cut.dragEnd')} onPointerDown={drag((v) => setOut(active, snapT(v)))} />
       </div>
+      <div className="wave-bar row small">
+        <button className="btn" aria-label={t('cut.zoomOut')} title={t('cut.zoomOut')} disabled={!zoomed} onClick={() => zoom(2, time)}>−</button>
+        <button className="btn" aria-label={t('cut.zoomIn')} title={t('cut.zoomIn')} disabled={view.span <= Math.min(MIN_SPAN, duration) + 0.001} onClick={() => zoom(0.5, time)}>+</button>
+        <button className="btn" disabled={!zoomed} onClick={() => setView({ start: 0, span: duration })}>{t('cut.zoomFit')}</button>
+        <span className="muted num">{formatTime(view.start).replace(/\.\d+$/, '')}–{formatTime(view.start + view.span).replace(/\.\d+$/, '')}</span>
+        <div className="grow" />
+        {waveLoading && <span className="muted">{t('cut.waveLoading')}</span>}
+        {wave && (
+          <label className="row" title={t('cut.snapTip')}>
+            <input type="checkbox" checked={snap} onChange={(e) => setSnap(e.target.checked)} />
+            {t('cut.snap')}
+          </label>
+        )}
+      </div>
+      {restored && (
+        <p className="muted small row" style={{ marginTop: 8 }}>{t('cut.restored')} <button className="btn" onClick={resetProject}>{t('cut.reset')}</button></p>
+      )}
       <div className="controls">
         <button className="btn" onClick={toggle} disabled={unplayable}>{playing ? t('cut.pause') : t('cut.play')}</button>
         <div className="num" aria-label={t('cut.time')}>{t('cut.of', { t: formatTime(time), d: formatTime(duration) })}</div>
@@ -215,10 +350,10 @@ function Cutter({ media, onQueued }: { media: OpenedMedia; onQueued(): void }) {
               <input type="radio" name="active-clip" checked={i === active} onChange={() => selectClip(i)} />
               {t('cut.clipN', { n: String(i + 1) })}
             </label>
-            <button className="btn" title={t('cut.setStartTip')} onClick={() => { setActive(i); setIn(i, time); }}>{t('cut.setStart')}</button>
+            <button className="btn" title={t('cut.setStartTip')} onClick={() => { setActive(i); setIn(i, snapT(time)); }}>{t('cut.setStart')}</button>
             <TimeField label={t('cut.startN', { n: String(i + 1) })} value={c.start} onFocus={() => setActive(i)} onCommit={(v) => setIn(i, v)} />
             <TimeField label={t('cut.endN', { n: String(i + 1) })} value={c.end} onFocus={() => setActive(i)} onCommit={(v) => setOut(i, v)} />
-            <button className="btn" title={t('cut.setEndTip')} onClick={() => { setActive(i); setOut(i, time); }}>{t('cut.setEnd')}</button>
+            <button className="btn" title={t('cut.setEndTip')} onClick={() => { setActive(i); setOut(i, snapT(time)); }}>{t('cut.setEnd')}</button>
             <div className="num small muted">{formatTime(c.end - c.start)}</div>
             {canChoose && (
               <select aria-label={t('cut.modeN', { n: String(i + 1) })} value={c.mode} onFocus={() => setActive(i)}
@@ -239,7 +374,7 @@ function Cutter({ media, onQueued }: { media: OpenedMedia; onQueued(): void }) {
       <p className="muted small">{t('cut.noteAv')}{canChoose ? ` ${t('cut.noteAudio')}` : ''}</p>
       {formatColumn && <p className="muted small">{t('cut.noteFormat')}</p>}
       <p className="muted small">
-        {t('cut.scClip')} <kbd>I</kbd> {t('cut.scStart')}, <kbd>O</kbd> {t('cut.scEnd')}. {t('cut.scPlayback')} <kbd>{t('cut.scSpace')}</kbd> {t('cut.scPlay')}, <kbd>←</kbd> <kbd>→</kbd> {t('cut.scSecond')} <kbd>Shift</kbd> {t('cut.scTen')}.
+        {t('cut.scClip')} <kbd>I</kbd> {t('cut.scStart')}, <kbd>O</kbd> {t('cut.scEnd')}. {t('cut.scPlayback')} <kbd>{t('cut.scSpace')}</kbd> {t('cut.scPlay')}, <kbd>←</kbd> <kbd>→</kbd> {t('cut.scSecond')} <kbd>Shift</kbd> {t('cut.scTen')}. {wave ? t('cut.zoomHint') : ''}
       </p>
       <div className="section">
         <h2>{t('cut.aboutFile')}</h2>

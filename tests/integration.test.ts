@@ -11,6 +11,9 @@ import { DownloadRunner, fetchUrlInfo, type DownloaderDeps } from '../src/main/s
 import { CutRunner } from '../src/main/services/ExportService';
 import { JobQueue } from '../src/main/services/JobQueue';
 import { JoinRunner } from '../src/main/services/JoinService';
+import { ProjectStore } from '../src/main/services/ProjectStore';
+import { getWaveform } from '../src/main/services/WaveformService';
+import { NO_EFFECTS } from '../src/shared/types';
 import { probeMedia } from '../src/main/services/MediaProbeService';
 import { runProcess } from '../src/main/services/ProcessManager';
 import type { AudioTarget, DownloadRequest, Job, Settings } from '../src/shared/types';
@@ -182,11 +185,57 @@ test('skjøting av lyd: tapsfritt når formatene er like, ellers omkoding, med r
     assert.equal(job.status, 'done', `${format}: ${job.error}`);
     assert.ok(job.outputPath!.endsWith(`(joined)${ext}`), job.outputPath ?? '');
     const out = await probeMedia(bin.require('ffprobe'), job.outputPath!);
-    assert.deepEqual(out.streams.map((s) => s.codec), [codec], format);
+    assert.deepEqual(out.streams.filter((s) => !s.attachedPic).map((s) => s.codec), [codec], format);
     assert.ok(Math.abs(out.durationSeconds - length) < 0.2, `${format} varer ${out.durationSeconds}, ventet ${length}`);
     assert.match(job.note ?? '', format === 'original' ? /joinCopy/ : /joinEncode/);
   }
   assert.deepEqual(readdirSync(join(dir, 'ut')).filter((f) => f.startsWith('.snutt')), [], 'midlertidige lister er ryddet');
+});
+
+test('skjøt med effekter: stillhet fjernes, hastighet og krysstoning gir riktig lengde, tagger og omslag kommer med', async () => {
+  const dir = join(work, 'effekter');
+  mkdirSync(dir);
+  // 1 s stillhet, 2 s tone, 1 s stillhet
+  const padded = async (name: string, freq: number) => {
+    const p = join(dir, name);
+    await ffmpeg('-f', 'lavfi', '-i', `sine=frequency=${freq}:duration=2`, '-af', 'adelay=1000:all=1,apad=pad_dur=1', '-ar', '44100', '-ac', '2', '-c:a', 'libmp3lame', p);
+    return p;
+  };
+  const a = await padded('a.mp3', 440);
+  const b = await padded('b.mp3', 660);
+  const cover = join(work, 'formater', 'a-omslag.mp4');
+  const run = async (inputs: string[], effects: typeof NO_EFFECTS, format: AudioTarget = 'mp3') => {
+    const queue = new JobQueue(() => {});
+    queue.register('join', new JoinRunner({ ffmpeg: () => bin.require('ffmpeg'), ffprobe: () => bin.require('ffprobe'), exportDir: () => join(dir, 'ut') }));
+    queue.enqueue('join', 'j', { inputs, format, effects });
+    const job = await waitFor(queue, (j) => ['done', 'failed'].includes(j.status));
+    assert.equal(job.status, 'done', job.error ?? '');
+    return { job, out: await probeMedia(bin.require('ffprobe'), job.outputPath!) };
+  };
+  const near = (v: number, want: number, tol: number, what: string) => assert.ok(Math.abs(v - want) < tol, `${what}: ${v}, ventet ${want}`);
+
+  near((await run([a, b], { ...NO_EFFECTS, trimSilence: true })).out.durationSeconds, 4.4, 0.15, 'stillhet fjernet');
+  near((await run([a, b], { ...NO_EFFECTS, speed: 2 })).out.durationSeconds, 4, 0.15, 'dobbel hastighet');
+  near((await run([a, b], { ...NO_EFFECTS, crossfade: 1, fadeIn: 1, fadeOut: 1, normalize: true })).out.durationSeconds, 7, 0.15, 'krysstoning');
+  const tagged = await run([cover, a], { ...NO_EFFECTS, title: 'Min mix æøå', artist: 'Kilemann' });
+  near(tagged.out.durationSeconds, 34, 0.2, 'med omslag');
+  assert.ok(tagged.out.streams.some((s) => s.attachedPic), 'omslaget er med');
+  const tags = await runProcess(bin.require('ffprobe'), ['-v', 'error', '-show_entries', 'format_tags=title,artist', '-of', 'json', tagged.job.outputPath!], { keepOutput: true }).result;
+  assert.deepEqual(JSON.parse(tags.stdout).format.tags, { title: 'Min mix æøå', artist: 'Kilemann' });
+  // Etter at stillheten er fjernet er filene 2,2 s, så 3 s krysstoning er for lang.
+  await assert.rejects(run([a, b], { ...NO_EFFECTS, trimSilence: true, crossfade: 3 }), /crossfadeTooLong/);
+});
+
+test('bølgeform og lagrede klipp', async () => {
+  const wave = await getWaveform(bin.require('ffmpeg'), bigFile);
+  assert.ok(Math.abs(wave.peaks.length - 3000) <= 2, `topper: ${wave.peaks.length}`);
+  // lavfi sine har amplitude 1/8. Kvadratrot-skalaen gir da cirka 90 av 255.
+  assert.ok(Math.abs(wave.maxPeak - 90) < 5, `topp ${wave.maxPeak}`);
+  const store = new ProjectStore(join(root, 'prosjekt'));
+  await store.save(bigFile, { count: 2, active: 1, clips: [{ start: 1, end: 2, mode: 'audio', fmt: 'mp3' }, { start: 3, end: 4, mode: 'av', fmt: 'original' }] });
+  const again = new ProjectStore(join(root, 'prosjekt'));
+  assert.deepEqual((await again.load(bigFile))?.clips[0], { start: 1, end: 2, mode: 'audio', fmt: 'mp3' });
+  assert.equal(await again.load(join(root, 'finnes-ikke.mp4')), null);
 });
 
 function deps(tempRoot: string): DownloaderDeps {
