@@ -24,7 +24,7 @@ npm run dist
 
 Integrasjonstesten laster ned ekte verktøy, cirka 400 MB. `npm run dist` lager den portable exe-filen i `release/` og må kjøres på Windows.
 
-Når en tagg som `v0.1.0` pushes, bygger GitHub Actions exe-filen og legger den i en release.
+Når `version` i `package.json` økes og pushes til `main`, bygger GitHub Actions exe-filen og lager releasen automatisk. Nettsiden lenker alltid til exe-filen i siste release.
 
 ## Opphavsrett
 

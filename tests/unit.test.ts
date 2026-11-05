@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 import { assetsFor, parseChecksum } from '../src/main/services/BinaryManager';
 import { assertHttpUrl, buildDownloadArgs, buildInfoArgs, extractError, parseInfoJson, parseProgressLine } from '../src/main/services/DownloaderService';
@@ -160,4 +161,13 @@ test('feil vises, og Prøv igjen kjører jobben på nytt', async () => {
   q.retry(id);
   assert.equal(q.list()[0].status, 'running');
   assert.equal(f.live.length, 2);
+});
+
+test('versjonsnummeret er likt i package.json, nettsiden, infovinduet og endringsloggen', () => {
+  const v = JSON.parse(readFileSync('package.json', 'utf8')).version;
+  const page = readFileSync('index.html', 'utf8');
+  assert.ok(page.includes(`<span class="ver" id="ver">v${v}</span>`), 'nettsiden');
+  assert.ok(page.includes(`<b>v${v}</b>`), 'versjonslisten på nettsiden');
+  assert.ok(readFileSync('src/renderer/views/InfoDialog.tsx', 'utf8').includes(`['v${v}',`), 'infovinduet');
+  assert.ok(readFileSync('CHANGELOG.md', 'utf8').includes(`## ${v} (`), 'endringsloggen');
 });

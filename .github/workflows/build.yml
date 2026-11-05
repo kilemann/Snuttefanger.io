@@ -30,14 +30,17 @@ jobs:
         with:
           name: package-lock
           path: package-lock.json
+      # Hver ny versjon i package.json blir en release automatisk. Finnes den fra før, røres den ikke.
       - name: Publiser release
-        if: startsWith(github.ref, 'refs/tags/v')
+        if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
-            gh release upload "$GITHUB_REF_NAME" release/*.exe --clobber
+          TAG="v$(node -p "require('./package.json').version")"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "$TAG finnes allerede"
           else
-            gh release create "$GITHUB_REF_NAME" release/*.exe --title "Snuttefanger $GITHUB_REF_NAME" --notes "Se CHANGELOG.md."
+            node -e "const s=require('fs').readFileSync('CHANGELOG.md','utf8');const m=s.split(/^## /m).find(x=>x.startsWith(process.argv[1].slice(1)+' '));process.stdout.write(m?m.split('\n').slice(1).join('\n').trim():'Se CHANGELOG.md.')" "$TAG" > notes.md
+            gh release create "$TAG" release/*.exe --target "$GITHUB_SHA" --title "Snuttefanger $TAG" --notes-file notes.md
           fi

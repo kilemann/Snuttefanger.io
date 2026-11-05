@@ -4,22 +4,100 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Snuttefanger</title>
+<meta name="theme-color" content="#1c1a26">
 <style>
-:root { color-scheme: dark; }
-body { margin: 0; background: #1c1a26; color: #f0edf5; font: 17px/1.55 "Segoe UI", system-ui, sans-serif; }
-main { max-width: 620px; margin: 0 auto; padding: 72px 16px; }
-h1 { font-size: 44px; line-height: 1.1; margin: 0 0 12px; }
-.strip { height: 42px; margin: 28px 0; border-radius: 4px; background: repeating-linear-gradient(90deg, #474359 0 9px, transparent 9px 20px) 0 4px / 100% 7px no-repeat, repeating-linear-gradient(90deg, #474359 0 9px, transparent 9px 20px) 0 31px / 100% 7px no-repeat, linear-gradient(90deg, #262433 30%, #6b5233 30% 68%, #262433 68%); }
-a { color: #f2a93b; }
-.cta { display: inline-block; background: #f2a93b; color: #2a1c05; padding: 10px 18px; border-radius: 6px; font-weight: 600; text-decoration: none; }
+:root { color-scheme: dark; --ink: #1c1a26; --panel: #262433; --line: #474359; --text: #f0edf5; --muted: #b2adc4; --amber: #f2a93b; --amber-ink: #2a1c05; }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--ink); color: var(--text); font: 17px/1.55 "Segoe UI", system-ui, sans-serif; }
+main { max-width: 640px; margin: 0 auto; padding: 28px 16px 64px; }
+.brand-row { display: flex; align-items: baseline; gap: 8px; }
+.brand { font-size: 20px; font-weight: 700; margin: 0; }
+.ver { font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.infobtn { align-self: center; width: 28px; height: 28px; border-radius: 50%; border: 1.5px solid var(--line); background: none; color: var(--muted); font: 600 15px/1 inherit; cursor: pointer; padding: 0; }
+.infobtn:hover { border-color: var(--amber); color: var(--amber); }
+:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
+h2 { font-size: 38px; line-height: 1.12; margin: 56px 0 12px; }
+.strip { height: 42px; margin: 28px 0; border-radius: 4px; background: repeating-linear-gradient(90deg, var(--line) 0 9px, transparent 9px 20px) 0 4px / 100% 7px no-repeat, repeating-linear-gradient(90deg, var(--line) 0 9px, transparent 9px 20px) 0 31px / 100% 7px no-repeat, linear-gradient(90deg, var(--panel) 30%, #6b5233 30% 68%, var(--panel) 68%); }
+a { color: var(--amber); }
+.cta { display: inline-block; background: var(--amber); color: var(--amber-ink); padding: 11px 20px; border-radius: 6px; font-weight: 600; text-decoration: none; }
+.cta:hover { background: #f7bb5f; }
+.muted { color: var(--muted); }
+.small { font-size: 15px; }
+dialog { background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 10px; padding: 0; width: min(600px, calc(100vw - 32px)); max-height: 86vh; }
+dialog::backdrop { background: rgba(10,9,16,.65); }
+.mhead { position: sticky; top: 0; background: var(--panel); display: flex; justify-content: space-between; align-items: center; padding: 16px 20px 8px; }
+.mhead h3 { margin: 0; font-size: 20px; }
+.mhead button { background: none; border: 1px solid var(--line); color: var(--text); border-radius: 6px; padding: 4px 12px; font: inherit; cursor: pointer; }
+.mbody { padding: 0 20px 20px; font-size: 15px; }
+.mbody h4 { margin: 18px 0 6px; font-size: 15px; }
+.mbody p, .mbody li { color: var(--muted); }
+.mbody ul, .mbody ol { margin: 0; padding-left: 20px; }
+.versions { display: grid; grid-template-columns: auto 1fr; gap: 6px 14px; color: var(--muted); }
+.versions b { color: var(--text); font-variant-numeric: tabular-nums; }
 </style>
 </head>
 <body><main>
-<h1>Snuttefanger</h1>
-<p>Windows-app som laster ned video og lyd, og klipper snutter uten kvalitetstap.</p>
+<header class="brand-row">
+  <h1 class="brand">Snuttefanger</h1><span class="ver" id="ver">v0.2.0</span>
+  <button class="infobtn" id="infobtn" aria-label="Om appen og hjelp" title="Om appen og hjelp">i</button>
+</header>
+<h2>Last ned video og lyd, og klipp ut snutter uten kvalitetstap.</h2>
 <div class="strip" role="img" aria-label="Filmstrimmel med et markert klipp"></div>
-<p><a class="cta" href="https://github.com/kilemann/Snuttefanger.io/releases">Last ned for Windows</a></p>
-<p>Appen er ikke kodesignert, så Windows kan vise en advarsel. Den henter yt-dlp, FFmpeg og Deno selv ved første oppstart. Last bare ned innhold du har rett til å bruke.</p>
+<p><a class="cta" id="download" href="https://github.com/kilemann/Snuttefanger.io/releases">Last ned for Windows</a></p>
+<p class="muted small" id="dlnote">Henter siste versjon.</p>
+<p class="muted">Programmet krever Windows 10 eller 11, 64-bit. Det installeres ikke: du starter exe-filen direkte. Ved første oppstart henter det selv yt-dlp, FFmpeg og Deno.</p>
+<p class="muted">Last bare ned innhold du har rett til å bruke.</p>
 <p><a href="https://github.com/kilemann/Snuttefanger.io">Kildekode og dokumentasjon</a></p>
-</main></body>
+</main>
+
+<dialog id="info" aria-labelledby="infottl">
+  <div class="mhead"><h3 id="infottl">Om Snuttefanger</h3><button id="infoclose">Lukk</button></div>
+  <div class="mbody">
+    <p>Snuttefanger er et Windows-program som laster ned video og lyd med yt-dlp, og klipper filer uten kvalitetstap med FFmpeg.</p>
+    <h4>Slik kommer du i gang</h4>
+    <ol>
+      <li>Last ned exe-filen og start den.</li>
+      <li>Windows kan advare fordi programmet ikke er kodesignert. Velg Mer info og deretter Kjør likevel.</li>
+      <li>Gå til Innstillinger og velg Installer det som mangler.</li>
+    </ol>
+    <h4>Hva det kan</h4>
+    <ul>
+      <li>Laste ned video eller bare lyd, med valg av kvalitet og format.</li>
+      <li>Pause, fortsette og avbryte nedlastinger.</li>
+      <li>Klippe ut 1 til 10 snutter fra en fil. Hver snutt blir en egen fil, og originalen endres ikke.</li>
+    </ul>
+    <h4>Versjoner</h4>
+    <div class="versions">
+      <b>v0.2.0</b><span>Velg 1 til 10 klipp fra samme fil. Klipp starter på 0 også når filen har omslagsbilde. Infoknapp.</span>
+      <b>v0.1.0</b><span>Første versjon: nedlasting, kø og tapsfritt klipp.</span>
+    </div>
+  </div>
+</dialog>
+
+<script>
+const info = document.getElementById('info');
+document.getElementById('infobtn').onclick = () => info.showModal();
+document.getElementById('infoclose').onclick = () => info.close();
+info.addEventListener('click', (e) => { if (e.target === info) info.close(); });
+
+// Lenken peker rett på exe-filen i siste release, så du alltid får versjonen som faktisk er bygd.
+(async () => {
+  const note = document.getElementById('dlnote');
+  try {
+    const r = await fetch('https://api.github.com/repos/kilemann/Snuttefanger.io/releases/latest', { headers: { Accept: 'application/vnd.github+json' } });
+    if (!r.ok) throw new Error(String(r.status));
+    const rel = await r.json();
+    const exe = (rel.assets || []).find((a) => /-portable\.exe$/.test(a.name));
+    if (!exe || !/^https:\/\/github\.com\//.test(exe.browser_download_url)) throw new Error('mangler exe');
+    const v = String(rel.tag_name).replace(/^v/, '');
+    const a = document.getElementById('download');
+    a.href = exe.browser_download_url;
+    a.textContent = `Last ned v${v} for Windows`;
+    note.textContent = `${exe.name}, ${Math.round(exe.size / 1048576)} MB.`;
+  } catch {
+    note.textContent = 'Fant ikke siste versjon automatisk. Knappen åpner listen over versjoner på GitHub.';
+  }
+})();
+</script>
+</body>
 </html>
