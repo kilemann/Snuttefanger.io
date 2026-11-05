@@ -1,18 +1,18 @@
 # Snuttefanger
 
-Last ned video og lyd, og klipp snutter tapsfritt. Windows-app bygd med Electron, yt-dlp og FFmpeg.
+Download video and audio, and cut clips without losing quality. A Windows app in English and Norwegian, built with Electron, yt-dlp and FFmpeg.
 
-Status: versjon 0.1, første fase. Se [spesifikasjonen](docs/SPEC.md) og [endringsloggen](CHANGELOG.md).
+Status: version 0.3. See the [specification](docs/SPEC.md) and the [changelog](CHANGELOG.md).
 
-## Bruke appen
+## Using the app
 
-1. Last ned `Snuttefanger-x.y.z-portable.exe` fra [Releases](https://github.com/kilemann/Snuttefanger.io/releases).
-2. Start filen. Windows SmartScreen kan advare fordi appen ikke er kodesignert.
-3. Gå til **Innstillinger** og velg **Installer det som mangler**. Appen henter yt-dlp, FFmpeg og Deno og kontrollerer sjekksummene.
+1. Download the exe from the [download page](https://kilemann.github.io/Snuttefanger.io/) or from [Releases](https://github.com/kilemann/Snuttefanger.io/releases).
+2. Start it. Windows SmartScreen may warn you because the app is not code-signed. Choose More info, then Run anyway.
+3. Go to **Settings** and choose **Install missing tools**. The app downloads yt-dlp, FFmpeg and Deno and verifies their checksums.
 
-## Utvikling
+## Development
 
-Krever Node.js 22.
+Requires Node.js 22.
 
 ```
 npm install
@@ -22,14 +22,14 @@ npm run test:integration
 npm run dist
 ```
 
-Integrasjonstesten laster ned ekte verktøy, cirka 400 MB. `npm run dist` lager den portable exe-filen i `release/` og må kjøres på Windows.
+The integration test downloads the real tools, about 400 MB. `npm run dist` builds the portable exe in `release/` and must run on Windows.
 
-Når `version` i `package.json` økes og pushes til `main`, bygger GitHub Actions exe-filen og lager releasen automatisk. Nettsiden lenker alltid til exe-filen i siste release.
+When `version` in `package.json` is raised and pushed to `main`, GitHub Actions builds the exe, tests the packaged app on Windows and creates the release. The download page always links to the exe in the latest release.
 
-## Opphavsrett
+## Copyright
 
-Videoer på YouTube og andre nettsteder kan være vernet av opphavsrett og vilkår. Du er selv ansvarlig for at du har rett til å laste ned og bruke innholdet.
+Videos on YouTube and other websites may be protected by copyright and terms of use. You are responsible for having the right to download and use the content.
 
-## Lisens og verktøy
+## License and tools
 
-Koden har [MIT-lisens](LICENSE). yt-dlp, FFmpeg og Deno følger ikke med i repoet eller exe-filen. De lastes ned fra utgiverne og har egne lisenser. FFmpeg-bygget som hentes er GPL-lisensiert.
+The code is [MIT licensed](LICENSE). yt-dlp, FFmpeg and Deno are not included in the repository or the exe. They are downloaded from their publishers and have their own licenses. The FFmpeg build that is downloaded is GPL licensed.

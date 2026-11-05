@@ -1,8 +1,8 @@
 {
   "name": "snuttefanger",
   "productName": "Snuttefanger",
-  "version": "0.2.0",
-  "description": "Last ned video og lyd, og klipp snutter tapsfritt.",
+  "version": "0.3.0",
+  "description": "Download video and audio, and cut clips without losing quality.",
   "author": "kilemann",
   "license": "MIT",
   "private": true,

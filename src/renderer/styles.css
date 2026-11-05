@@ -89,6 +89,7 @@ label.field { display: flex; flex-direction: column; gap: 4px; font-size: 13px; 
 kbd { background: var(--raised); border: 1px solid var(--line); border-radius: 4px; padding: 0 5px; font: inherit; font-size: 12px; }
 
 .clips { display: grid; grid-template-columns: auto auto 124px 124px auto auto; gap: 6px 10px; align-items: center; justify-content: start; margin-bottom: 14px; }
+.clips.with-mode { grid-template-columns: auto auto 124px 124px auto auto auto; }
 .clip-row { display: contents; }
 .clip-name { display: flex; align-items: center; gap: 7px; padding-right: 8px; cursor: pointer; white-space: nowrap; }
 .clip-name input { accent-color: var(--amber); margin: 0; }

@@ -1,5 +1,6 @@
 import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
+import { isLanguage } from '../../shared/i18n';
 import type { Settings } from '../../shared/types';
 
 const QUALITIES = ['best', 2160, 1440, 1080, 720, 480];
@@ -21,6 +22,7 @@ export function sanitizeSettings(raw: Partial<Settings>, defaults: Settings): Se
     ffmpegPath: str(raw.ffmpegPath, ''),
     ffprobePath: str(raw.ffprobePath, ''),
     denoPath: str(raw.denoPath, ''),
+    language: isLanguage(raw.language) ? raw.language : defaults.language,
   };
 }
 

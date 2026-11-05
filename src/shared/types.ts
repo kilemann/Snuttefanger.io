@@ -1,3 +1,5 @@
+import type { Language } from './i18n';
+
 export type JobKind = 'download' | 'export';
 export type JobStatus = 'queued' | 'running' | 'paused' | 'done' | 'failed' | 'canceled';
 
@@ -69,15 +71,19 @@ export interface OpenedMedia extends MediaInfo {
   src: string;
 }
 
+/** av: video and audio as in the original. audio: only the first audio track, without re-encoding. */
+export type CutMode = 'av' | 'audio';
+
 export interface CutRequest {
   input: string;
   startSeconds: number;
   endSeconds: number;
+  mode: CutMode;
 }
 
 export interface CutBatch {
   input: string;
-  clips: { startSeconds: number; endSeconds: number }[];
+  clips: { startSeconds: number; endSeconds: number; mode: CutMode }[];
 }
 
 export interface Settings {
@@ -92,6 +98,7 @@ export interface Settings {
   ffmpegPath: string;
   ffprobePath: string;
   denoPath: string;
+  language: Language;
 }
 
 export type ToolName = 'ytDlp' | 'ffmpeg' | 'ffprobe' | 'deno';

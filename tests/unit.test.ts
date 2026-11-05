@@ -3,11 +3,12 @@ import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 import { assetsFor, parseChecksum } from '../src/main/services/BinaryManager';
 import { assertHttpUrl, buildDownloadArgs, buildInfoArgs, extractError, parseInfoJson, parseProgressLine } from '../src/main/services/DownloaderService';
-import { buildCutArgs, cutOptions, parseOutTime, validateCut } from '../src/main/services/ExportService';
+import { audioExtension, buildCoverArgs, buildCutArgs, cutOptions, outputExtension, parseOutTime, validateCut } from '../src/main/services/ExportService';
 import { JobQueue, type JobHandle } from '../src/main/services/JobQueue';
 import { parseProbe } from '../src/main/services/MediaProbeService';
 import { sanitizeSettings } from '../src/main/services/SettingsService';
 import type { DownloadRequest, Job, Settings } from '../src/shared/types';
+import { languageFromLocale, msg, translate, translateMessage } from '../src/shared/i18n';
 
 const tools = { ffmpeg: '/x/ffmpeg', deno: '/x/deno' };
 const req: DownloadRequest = { url: 'https://a.no/v', title: 't', mode: 'video', quality: 1080, container: 'mp4', audioFormat: 'mp3', destination: '/d' };
@@ -45,7 +46,7 @@ test('tolker fremdrift og feil fra yt-dlp', () => {
 });
 
 test('spilleliste avvises med forklaring og høyder sorteres', () => {
-  assert.throws(() => parseInfoJson('{"_type":"playlist"}'), /Spillelister/);
+  assert.throws(() => parseInfoJson('{"_type":"playlist"}'), /playlist/);
   const i = parseInfoJson(JSON.stringify({ title: 'T', formats: [{ vcodec: 'h264', height: 720 }, { vcodec: 'none', height: 999 }, { vcodec: 'vp9', height: 1080 }, { vcodec: 'h264', height: 720 }] }));
   assert.deepEqual(i.heights, [1080, 720]);
 });
@@ -75,7 +76,28 @@ test('omslagsbilde hentes fra egen inngang, og FLAC kodes tapsfritt på nytt', (
     { index: 0, codec_type: 'video', codec_name: 'av1' }, { index: 1, codec_type: 'audio', codec_name: 'opus' },
     { index: 2, codec_type: 'video', codec_name: 'png', disposition: { attached_pic: 1 } },
   ] }), '/m/a.mp4', 5);
-  assert.deepEqual(cutOptions(info), { cover: { index: 2, outputVideoIndex: 1 }, encodeFlac: false });
+  assert.deepEqual(cutOptions(info), { cover: { index: 2, outputVideoIndex: 1 }, encodeFlac: false, audioOnly: false });
+  // Bare lyd: Opus havner i .opus, som ikke kan ha omslag, og bare første lydspor tas med.
+  assert.equal(outputExtension(info, 'audio'), '.opus');
+  assert.deepEqual(cutOptions(info, 'audio'), { cover: undefined, encodeFlac: false, audioOnly: true });
+  const withCover = buildCutArgs('in.mp4', 1, 2, 'ut.m4a', { audioOnly: true, cover: { index: 2, outputVideoIndex: 0 } });
+  assert.equal(withCover.filter((x) => x === '-i').length, 1, 'omslaget legges på i eget steg');
+  const step2 = buildCoverArgs('lyd.m4a', 'in.mp4', 2, 'ut.m4a');
+  assert.deepEqual(step2.slice(step2.indexOf('-map')), ['-map', '0:a', '-map', '1:2', '-c', 'copy', '-disposition:v:0', 'attached_pic', '-map_metadata', '0', 'ut.m4a']);
+  const audio = buildCutArgs('in.mp4', 1, 2, 'ut.opus', { audioOnly: true });
+  assert.deepEqual(audio.filter((x, i) => audio[i - 1] === '-map'), ['0:a:0']);
+  assert.ok(audio.indexOf('-ss') > audio.indexOf('-i'), 'bare lyd kuttes nøyaktig etter -i');
+  assert.equal(audio[audio.indexOf('-t') + 1], '1.000');
+});
+
+test('lydspor får en beholder som tar kodeken uendret', () => {
+  assert.equal(audioExtension('aac'), '.m4a');
+  assert.equal(audioExtension('mp3'), '.mp3');
+  assert.equal(audioExtension('pcm_s16le'), '.wav');
+  assert.equal(audioExtension('vorbis'), '.ogg');
+  assert.equal(audioExtension('dts'), '.mka');
+  const noAudio = parseProbe(JSON.stringify({ format: { duration: '9' }, streams: [{ index: 0, codec_type: 'video', codec_name: 'h264' }] }), '/m/a.mp4', 5);
+  assert.throws(() => outputExtension(noAudio, 'audio'), /noAudio/);
 });
 
 test('sjekksummer leses fra alle tre formatene', () => {
@@ -98,7 +120,7 @@ test('ffprobe-data tolkes, og omslagsbilde regnes ikke som video', () => {
 });
 
 test('ugyldige innstillinger faller tilbake til standard', () => {
-  const d = { downloadDir: '/d', exportDir: '', quality: 'best', container: 'mp4', audioFormat: 'mp3', maxDownloads: 3, embedThumbnail: true, ytDlpPath: '', ffmpegPath: '', ffprobePath: '', denoPath: '' } as Settings;
+  const d = { downloadDir: '/d', exportDir: '', quality: 'best', container: 'mp4', audioFormat: 'mp3', maxDownloads: 3, embedThumbnail: true, ytDlpPath: '', ffmpegPath: '', ffprobePath: '', denoPath: '', language: 'en' } as Settings;
   const s = sanitizeSettings({ quality: 123 as never, maxDownloads: 99, audioFormat: 'flac' }, d);
   assert.equal(s.quality, 'best'); assert.equal(s.maxDownloads, 3); assert.equal(s.audioFormat, 'flac');
 });
@@ -170,4 +192,23 @@ test('versjonsnummeret er likt i package.json, nettsiden, infovinduet og endring
   assert.ok(page.includes(`<b>v${v}</b>`), 'versjonslisten på nettsiden');
   assert.ok(readFileSync('src/renderer/views/InfoDialog.tsx', 'utf8').includes(`['v${v}',`), 'infovinduet');
   assert.ok(readFileSync('CHANGELOG.md', 'utf8').includes(`## ${v} (`), 'endringsloggen');
+});
+
+test('meldinger fra hovedprosessen oversettes når de vises, også nestede', () => {
+  const m = msg('err.clipN', { n: 2, inner: msg('err.noAudio') });
+  assert.equal(translateMessage('en', m), 'Clip 2: This file has no audio.');
+  assert.equal(translateMessage('nb', m), 'Klipp 2: Filen har ingen lyd.');
+  assert.equal(translateMessage('nb', 'ERROR fra yt-dlp'), 'ERROR fra yt-dlp');
+  assert.equal(translate('nb', 'note.keyframe', { s: 2.25 }).startsWith('Klippet ble 2,3 s'), true);
+  assert.equal(translate('en', 'note.keyframe', { s: 2.25 }).startsWith('The clip is 2.3 s'), true);
+  assert.equal(languageFromLocale('nb-NO'), 'nb');
+  assert.equal(languageFromLocale('nn'), 'nb');
+  assert.equal(languageFromLocale('en-US'), 'en');
+  assert.equal(languageFromLocale('sv-SE'), 'en');
+});
+
+test('språkinnstillingen godtar bare norsk og engelsk', () => {
+  const d = { downloadDir: '/d', exportDir: '', quality: 'best', container: 'mp4', audioFormat: 'mp3', maxDownloads: 3, embedThumbnail: true, ytDlpPath: '', ffmpegPath: '', ffprobePath: '', denoPath: '', language: 'nb' } as Settings;
+  assert.equal(sanitizeSettings({ language: 'en' }, d).language, 'en');
+  assert.equal(sanitizeSettings({ language: 'de' as never }, d).language, 'nb');
 });

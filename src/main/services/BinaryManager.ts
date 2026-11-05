@@ -1,3 +1,4 @@
+import { msg } from '../../shared/i18n';
 import { createHash } from 'node:crypto';
 import { createWriteStream, existsSync } from 'node:fs';
 import { chmod, copyFile, mkdir, readdir, rename, rm } from 'node:fs/promises';
@@ -94,7 +95,7 @@ export class BinaryManager {
   /** Gir stien til et verktøy, eller en feil som forteller hva brukeren skal gjøre. */
   require(name: ToolName): string {
     const { path } = this.locate(name);
-    if (!path) throw new Error(`${FILE_NAMES[name]} mangler. Installer verktøyene under Innstillinger.`);
+    if (!path) throw new Error(msg('err.toolMissing', { tool: FILE_NAMES[name] }));
     return path;
   }
 
@@ -117,33 +118,33 @@ export class BinaryManager {
   /** Laster bare ned det som mangler, med mindre `only` er satt. */
   async install(only?: ToolName[]): Promise<void> {
     const assets = assetsFor(this.platform);
-    if (assets.length === 0) throw new Error('Automatisk installasjon støttes ikke på dette systemet.');
+    if (assets.length === 0) throw new Error(msg('err.unsupported'));
     const wanted = assets.filter((a) => only
       ? a.provides.some((n) => only.includes(n))
       : a.provides.some((n) => this.locate(n).source === 'missing'));
     try {
       await mkdir(this.binDir, { recursive: true });
       for (const asset of wanted) await this.installAsset(asset);
-      this.onInstall({ active: false, message: 'Verktøyene er klare.', percent: 100, error: null });
+      this.onInstall({ active: false, message: msg('inst.ready'), percent: 100, error: null });
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
-      this.onInstall({ active: false, message: 'Installasjonen stoppet.', percent: null, error: message });
+      this.onInstall({ active: false, message: msg('inst.stopped'), percent: null, error: message });
       throw err;
     }
   }
 
   private async installAsset(asset: Asset): Promise<void> {
-    const label = asset.provides.map((n) => FILE_NAMES[n]).join(' og ');
+    const label = asset.provides.map((n) => FILE_NAMES[n]).join(' + ');
     const work = join(this.binDir, `.install-${asset.provides[0]}`);
     await rm(work, { recursive: true, force: true });
     await mkdir(work, { recursive: true });
     try {
       const expected = parseChecksum(await this.fetchText(asset.checksumUrl), asset.checksumEntry);
-      if (!expected) throw new Error(`Fant ikke sjekksum for ${label}.`);
+      if (!expected) throw new Error(msg('err.noChecksum', { label }));
       const file = join(work, 'download');
       const actual = await this.download(asset.url, file, label);
-      if (actual !== expected) throw new Error(`Sjekksummen for ${label} stemmer ikke. Filen er forkastet.`);
-      this.onInstall({ active: true, message: `Pakker ut ${label}`, percent: null, error: null });
+      if (actual !== expected) throw new Error(msg('err.badChecksum', { label }));
+      this.onInstall({ active: true, message: msg('inst.unpacking', { label }), percent: null, error: null });
       if (asset.archive === 'none') {
         await this.place(file, asset.provides[0]);
         return;
@@ -152,10 +153,10 @@ export class BinaryManager {
       await mkdir(out);
       const [cmd, args] = extractCommand(asset.archive, file, out, this.platform);
       const r = await runProcess(cmd, args).result;
-      if (r.code !== 0) throw new Error(`Utpakking av ${label} feilet: ${r.stderr}`);
+      if (r.code !== 0) throw new Error(msg('err.unpack', { label, detail: r.stderr.trim() }));
       for (const name of asset.provides) {
         const found = await findFile(out, FILE_NAMES[name] + this.exe);
-        if (!found) throw new Error(`Fant ikke ${FILE_NAMES[name]} i arkivet.`);
+        if (!found) throw new Error(msg('err.notInArchive', { tool: FILE_NAMES[name] }));
         await this.place(found, name);
       }
     } finally {
@@ -173,13 +174,13 @@ export class BinaryManager {
 
   private async fetchText(url: string): Promise<string> {
     const res = await fetch(url);
-    if (!res.ok) throw new Error(`Kunne ikke hente ${url} (HTTP ${res.status}).`);
+    if (!res.ok) throw new Error(msg('err.fetch', { url, status: String(res.status) }));
     return res.text();
   }
 
   private async download(url: string, file: string, label: string): Promise<string> {
     const res = await fetch(url);
-    if (!res.ok || !res.body) throw new Error(`Kunne ikke laste ned ${label} (HTTP ${res.status}).`);
+    if (!res.ok || !res.body) throw new Error(msg('err.download', { label, status: String(res.status) }));
     const total = Number(res.headers.get('content-length')) || null;
     const hash = createHash('sha256');
     let received = 0;
@@ -191,7 +192,7 @@ export class BinaryManager {
       const now = Date.now();
       if (now - lastReport > 200) {
         lastReport = now;
-        this.onInstall({ active: true, message: `Laster ned ${label}`, percent: total ? (received / total) * 100 : null, error: null });
+        this.onInstall({ active: true, message: msg('inst.downloading', { label }), percent: total ? (received / total) * 100 : null, error: null });
       }
     });
     await pipeline(body, createWriteStream(file));

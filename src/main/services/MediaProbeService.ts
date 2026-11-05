@@ -1,3 +1,4 @@
+import { msg } from '../../shared/i18n';
 import { stat } from 'node:fs/promises';
 import { basename } from 'node:path';
 import type { MediaInfo, MediaStream } from '../../shared/types';
@@ -15,17 +16,17 @@ export function parseProbe(json: string, path: string, sizeBytes: number): Media
     const attached = s.disposition?.attached_pic === 1;
     const type = attached ? 'other' : (['video', 'audio', 'subtitle'].includes(s.codec_type) ? s.codec_type : 'other');
     return {
-      index: s.index, type, attachedPic: attached, codec: s.codec_name ?? 'ukjent',
+      index: s.index, type, attachedPic: attached, codec: s.codec_name ?? '?',
       width: s.width, height: s.height, frameRate: type === 'video' ? parseRate(s.avg_frame_rate) : undefined,
       channels: s.channels, sampleRate: s.sample_rate ? Number(s.sample_rate) : undefined,
     };
   });
   const duration = Number(data.format?.duration);
-  if (!Number.isFinite(duration) || duration <= 0) throw new Error('Filen har ingen lesbar varighet.');
+  if (!Number.isFinite(duration) || duration <= 0) throw new Error(msg('err.noDuration'));
   return {
     path, fileName: basename(path), sizeBytes, durationSeconds: duration,
     startSeconds: Number(data.format?.start_time) || 0,
-    formatName: data.format?.format_name ?? 'ukjent',
+    formatName: data.format?.format_name ?? '?',
     bitrate: data.format?.bit_rate ? Number(data.format.bit_rate) : null,
     streams,
   };
@@ -34,6 +35,6 @@ export function parseProbe(json: string, path: string, sizeBytes: number): Media
 export async function probeMedia(ffprobe: string, path: string): Promise<MediaInfo> {
   const { size } = await stat(path);
   const r = await runProcess(ffprobe, ['-v', 'error', '-print_format', 'json', '-show_format', '-show_streams', path], { keepOutput: true, timeoutMs: 60_000 }).result;
-  if (r.code !== 0) throw new Error(`Kunne ikke lese filen: ${r.stderr.trim() || 'ukjent format'}`);
+  if (r.code !== 0) throw new Error(msg('err.read', { detail: r.stderr.trim() || '?' }));
   return parseProbe(r.stdout, path, size);
 }

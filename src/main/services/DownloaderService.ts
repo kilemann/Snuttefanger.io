@@ -1,3 +1,4 @@
+import { msg } from '../../shared/i18n';
 import { mkdir, rm } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import type { DownloadRequest, Job, JobProgress, UrlInfo } from '../../shared/types';
@@ -9,8 +10,8 @@ const FILE = 'SNUTTFILE';
 
 export function assertHttpUrl(value: string): string {
   let url: URL;
-  try { url = new URL(value.trim()); } catch { throw new Error('Lim inn en gyldig nettadresse.'); }
-  if (url.protocol !== 'http:' && url.protocol !== 'https:') throw new Error('Bare adresser som starter med http eller https kan lastes ned.');
+  try { url = new URL(value.trim()); } catch { throw new Error(msg('err.badUrl')); }
+  if (url.protocol !== 'http:' && url.protocol !== 'https:') throw new Error(msg('err.httpOnly'));
   return url.href;
 }
 
@@ -62,12 +63,12 @@ export function parseProgressLine(line: string): JobProgress | null {
 
 export function parseInfoJson(json: string): UrlInfo {
   const d = JSON.parse(json);
-  if (d._type === 'playlist') throw new Error('Dette er en spilleliste. Spillelister kommer i fase 4, så lim inn adressen til én video.');
+  if (d._type === 'playlist') throw new Error(msg('err.playlist'));
   const heights = [...new Set<number>((d.formats ?? [])
     .filter((f: any) => f.vcodec && f.vcodec !== 'none' && typeof f.height === 'number')
     .map((f: any) => f.height as number))].sort((a, b) => b - a);
   return {
-    title: d.title ?? 'Uten tittel', uploader: d.uploader ?? null,
+    title: d.title ?? '?', uploader: d.uploader ?? null,
     durationSeconds: typeof d.duration === 'number' ? d.duration : null,
     thumbnail: typeof d.thumbnail === 'string' && d.thumbnail.startsWith('https://') ? d.thumbnail : null,
     heights,
@@ -78,7 +79,7 @@ export function parseInfoJson(json: string): UrlInfo {
 export function extractError(stderr: string): string {
   const lines = stderr.split(/\r?\n/).filter((l) => l.startsWith('ERROR:'));
   const message = lines.at(-1)?.replace(/^ERROR:\s*/, '') ?? stderr.trim().split(/\r?\n/).at(-1);
-  return message || 'yt-dlp stoppet uten feilmelding.';
+  return message || msg('err.ytdlpSilent');
 }
 
 export interface DownloaderDeps {
@@ -91,7 +92,7 @@ export interface DownloaderDeps {
 export async function fetchUrlInfo(deps: DownloaderDeps, url: string): Promise<UrlInfo> {
   const safe = assertHttpUrl(url);
   const r = await runProcess(deps.ytDlp(), buildInfoArgs(safe, deps.tools()), { keepOutput: true, timeoutMs: 90_000 }).result;
-  if (r.stopped) throw new Error('Nettstedet svarte ikke innen 90 sekunder.');
+  if (r.stopped) throw new Error(msg('err.timeout'));
   if (r.code !== 0) throw new Error(extractError(r.stderr));
   return parseInfoJson(r.stdout);
 }
@@ -115,10 +116,10 @@ export class DownloadRunner implements JobRunner<DownloadRequest> {
     const done = (async () => {
       await mkdir(req.destination, { recursive: true });
       const r = await proc.result;
-      if (r.stopped) throw new Error('Stoppet');
+      if (r.stopped) throw new Error(msg('err.stopped'));
       if (r.code !== 0) throw new Error(extractError(r.stderr));
       await rm(tempDir, { recursive: true, force: true });
-      if (!outputPath) throw new Error('Nedlastingen ble ferdig, men yt-dlp oppga ingen fil.');
+      if (!outputPath) throw new Error(msg('err.noFile'));
       return { outputPath };
     })();
     return { done, stop: proc.stop };

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import type { AudioFormat, Quality, Settings, UrlInfo, VideoContainer } from '../../shared/types';
 import { cleanError } from '../main';
 import { formatTime } from '../format';
+import { t } from '../i18n';
 
 const api = window.snutt;
 const QUALITIES: Exclude<Quality, 'best'>[] = [2160, 1440, 1080, 720, 480];
@@ -36,19 +37,47 @@ export function DownloadView({ settings, onQueued }: { settings: Settings; onQue
 
   const available = QUALITIES.filter((q) => !info || info.heights.length === 0 || info.heights.some((h) => h >= q));
   const audioNote = audioFormat === 'flac' || audioFormat === 'wav'
-    ? `${audioFormat.toUpperCase()} tar mer plass, men gir ikke bedre lyd enn kilden. Nettsteder leverer normalt tapsbeheftet lyd.`
-    : audioFormat === 'mp3' || audioFormat === 'aac'
-      ? 'Lyden omkodes hvis kilden har et annet format, og det gir et lite kvalitetstap.'
-      : 'Lyden beholdes uendret hvis kilden allerede har dette formatet.';
+    ? t('dl.noteBig', { fmt: audioFormat.toUpperCase() })
+    : audioFormat === 'mp3' || audioFormat === 'aac' ? t('dl.noteReencode') : t('dl.noteKeep');
 
   return (
     <div className="narrow">
-      <h1>Last ned</h1>
+      <h1>{t('dl.title')}</h1>
       <form className="row" onSubmit={(e) => { e.preventDefault(); void fetchInfo(); }}>
-        <input className="grow" type="url" aria-label="Nettadresse" placeholder="Lim inn adressen til en video" value={url}
+        <input className="grow" type="url" aria-label={t('dl.address')} placeholder={t('dl.placeholder')} value={url}
           onChange={(e) => { setUrl(e.target.value); setInfo(null); }} />
-        <button className="btn" type="submit" disabled={busy || !url.trim()}>{busy ? 'Henter info' : 'Hent info'}</button>
+        <button className="btn" type="submit" disabled={busy || !url.trim()}>{busy ? t('dl.gettingInfo') : t('dl.getInfo')}</button>
       </form>
+      <div className="row end" style={{ marginTop: 14 }}>
+        <label className="field">{t('dl.type')}
+          <select aria-label={t('dl.typeLabel')} value={mode} onChange={(e) => setMode(e.target.value as 'video' | 'audio')}>
+            <option value="video">{t('dl.videoAudio')}</option>
+            <option value="audio">{t('dl.audioOnly')}</option>
+          </select>
+        </label>
+        {mode === 'video' ? (
+          <>
+            <label className="field">{t('dl.quality')}
+              <select value={String(quality)} onChange={(e) => setQuality(e.target.value === 'best' ? 'best' : Number(e.target.value) as Quality)}>
+                <option value="best">{t('dl.best')}</option>
+                {available.map((q) => <option key={q} value={q}>{t('dl.upTo', { q: String(q) })}</option>)}
+              </select>
+            </label>
+            <label className="field">{t('dl.fileFormat')}
+              <select value={container} onChange={(e) => setContainer(e.target.value as VideoContainer)}>
+                <option value="mp4">MP4</option><option value="mkv">MKV</option>
+              </select>
+            </label>
+          </>
+        ) : (
+          <label className="field">{t('dl.audioFormat')}
+            <select value={audioFormat} onChange={(e) => setAudioFormat(e.target.value as AudioFormat)}>
+              {AUDIO.map((a) => <option key={a} value={a}>{a.toUpperCase()}</option>)}
+            </select>
+          </label>
+        )}
+      </div>
+      {mode === 'audio' && <p className="muted small" style={{ marginTop: 10 }}>{audioNote}</p>}
       {error && <p className="error" role="alert" style={{ marginTop: 12 }}>{error}</p>}
       {info && (
         <>
@@ -59,44 +88,14 @@ export function DownloadView({ settings, onQueued }: { settings: Settings; onQue
               <div className="muted">{[info.uploader, info.durationSeconds != null ? formatTime(info.durationSeconds).replace(/\.\d+$/, '') : null].filter(Boolean).join(', ')}</div>
             </div>
           </div>
-          <div className="row end">
-            <label className="field">Type
-              <select value={mode} onChange={(e) => setMode(e.target.value as 'video' | 'audio')}>
-                <option value="video">Video med lyd</option>
-                <option value="audio">Bare lyd</option>
-              </select>
-            </label>
-            {mode === 'video' ? (
-              <>
-                <label className="field">Kvalitet
-                  <select value={String(quality)} onChange={(e) => setQuality(e.target.value === 'best' ? 'best' : Number(e.target.value) as Quality)}>
-                    <option value="best">Beste tilgjengelige</option>
-                    {available.map((q) => <option key={q} value={q}>Opptil {q}p</option>)}
-                  </select>
-                </label>
-                <label className="field">Filformat
-                  <select value={container} onChange={(e) => setContainer(e.target.value as VideoContainer)}>
-                    <option value="mp4">MP4</option><option value="mkv">MKV</option>
-                  </select>
-                </label>
-              </>
-            ) : (
-              <label className="field">Lydformat
-                <select value={audioFormat} onChange={(e) => setAudioFormat(e.target.value as AudioFormat)}>
-                  {AUDIO.map((a) => <option key={a} value={a}>{a.toUpperCase()}</option>)}
-                </select>
-              </label>
-            )}
-          </div>
-          {mode === 'audio' && <p className="muted small" style={{ marginTop: 10 }}>{audioNote}</p>}
-          <div className="row" style={{ marginTop: 14 }}>
-            <input className="grow" type="text" aria-label="Lagres i" value={destination} disabled />
-            <button className="btn" onClick={async () => { const d = await api.pickFolder(destination); if (d) setDestination(d); }}>Velg mappe</button>
-            <button className="btn primary" onClick={start}>Last ned</button>
+          <div className="row">
+            <input className="grow" type="text" aria-label={t('dl.saveTo')} value={destination} disabled />
+            <button className="btn" onClick={async () => { const d = await api.pickFolder(destination); if (d) setDestination(d); }}>{t('dl.chooseFolder')}</button>
+            <button className="btn primary" onClick={start}>{t('dl.start')}</button>
           </div>
         </>
       )}
-      {!info && !error && !busy && <p className="muted" style={{ marginTop: 16 }}>Du får velge kvalitet og format når informasjonen er hentet. Last bare ned innhold du har rett til å bruke.</p>}
+      {!info && !error && !busy && <p className="muted" style={{ marginTop: 16 }}>{t('dl.hint')}</p>}
     </div>
   );
 }

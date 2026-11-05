@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="nb">
+<html lang="en" data-lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -34,25 +34,50 @@ dialog::backdrop { background: rgba(10,9,16,.65); }
 .mbody ul, .mbody ol { margin: 0; padding-left: 20px; }
 .versions { display: grid; grid-template-columns: auto 1fr; gap: 6px 14px; color: var(--muted); }
 .versions b { color: var(--text); font-variant-numeric: tabular-nums; }
+.lang { margin-left: auto; align-self: center; background: none; border: 1px solid var(--line); color: var(--muted); border-radius: 6px; padding: 3px 10px; font: inherit; font-size: 14px; cursor: pointer; }
+.lang:hover { color: var(--amber); border-color: var(--amber); }
+html[data-lang="en"] [lang="nb"], html[data-lang="nb"] [lang="en"]:not(html) { display: none; }
 </style>
 </head>
 <body><main>
 <header class="brand-row">
-  <h1 class="brand">Snuttefanger</h1><span class="ver" id="ver">v0.2.0</span>
-  <button class="infobtn" id="infobtn" aria-label="Om appen og hjelp" title="Om appen og hjelp">i</button>
+  <h1 class="brand">Snuttefanger</h1><span class="ver" id="ver">v0.3.0</span>
+  <button class="infobtn" id="infobtn" aria-label="About and help / Om appen og hjelp" title="About and help / Om appen og hjelp">i</button>
+  <button class="lang" id="langbtn"><span lang="en">Norsk</span><span lang="nb">English</span></button>
 </header>
-<h2>Last ned video og lyd, og klipp ut snutter uten kvalitetstap.</h2>
-<div class="strip" role="img" aria-label="Filmstrimmel med et markert klipp"></div>
-<p><a class="cta" id="download" href="https://github.com/kilemann/Snuttefanger.io/releases">Last ned for Windows</a></p>
-<p class="muted small" id="dlnote">Henter siste versjon.</p>
-<p class="muted">Programmet krever Windows 10 eller 11, 64-bit. Det installeres ikke: du starter exe-filen direkte. Ved første oppstart henter det selv yt-dlp, FFmpeg og Deno.</p>
-<p class="muted">Last bare ned innhold du har rett til å bruke.</p>
-<p><a href="https://github.com/kilemann/Snuttefanger.io">Kildekode og dokumentasjon</a></p>
+<h2><span lang="en">Download video and audio, and cut out clips without losing quality.</span><span lang="nb">Last ned video og lyd, og klipp ut snutter uten kvalitetstap.</span></h2>
+<div class="strip" role="img" aria-label="Film strip with a marked clip"></div>
+<p><a class="cta" id="download" href="https://github.com/kilemann/Snuttefanger.io/releases"><span lang="en">Download for Windows</span><span lang="nb">Last ned for Windows</span></a></p>
+<p class="muted small" id="dlnote"><span lang="en">Getting the latest version.</span><span lang="nb">Henter siste versjon.</span></p>
+<p class="muted"><span lang="en">The program requires 64-bit Windows 10 or 11. Nothing is installed: you start the exe directly. On first start it gets yt-dlp, FFmpeg and Deno itself. It can be used in English or Norwegian.</span><span lang="nb">Programmet krever Windows 10 eller 11, 64-bit. Det installeres ikke: du starter exe-filen direkte. Ved første oppstart henter det selv yt-dlp, FFmpeg og Deno. Det kan brukes på norsk eller engelsk.</span></p>
+<p class="muted"><span lang="en">Only download content you have the right to use.</span><span lang="nb">Last bare ned innhold du har rett til å bruke.</span></p>
+<p><a href="https://github.com/kilemann/Snuttefanger.io"><span lang="en">Source code and documentation</span><span lang="nb">Kildekode og dokumentasjon</span></a></p>
 </main>
 
 <dialog id="info" aria-labelledby="infottl">
-  <div class="mhead"><h3 id="infottl">Om Snuttefanger</h3><button id="infoclose">Lukk</button></div>
-  <div class="mbody">
+  <div class="mhead"><h3 id="infottl"><span lang="en">About Snuttefanger</span><span lang="nb">Om Snuttefanger</span></h3><button id="infoclose"><span lang="en">Close</span><span lang="nb">Lukk</span></button></div>
+  <div class="mbody" lang="en">
+    <p>Snuttefanger is a Windows program that downloads video and audio with yt-dlp, and cuts files without losing quality with FFmpeg.</p>
+    <h4>Getting started</h4>
+    <ol>
+      <li>Download the exe and start it.</li>
+      <li>Windows may warn you because the program is not code-signed. Choose More info, then Run anyway.</li>
+      <li>Go to Settings and choose Install missing tools.</li>
+    </ol>
+    <h4>What it does</h4>
+    <ul>
+      <li>Downloads video or audio only, with a choice of quality and format.</li>
+      <li>Pauses, resumes and cancels downloads.</li>
+      <li>Cuts 1 to 10 clips from a file. Each clip becomes its own file, as video and audio or audio only, and the original is not changed.</li>
+    </ul>
+    <h4>Versions</h4>
+    <div class="versions">
+      <b>v0.3.0</b><span>Choose Video and audio or Audio only for each clip. Download choices are visible right away. English and Norwegian.</span>
+      <b>v0.2.0</b><span>Choose 1 to 10 clips from the same file. Clips start at 0 even when the file has cover art. Info button.</span>
+      <b>v0.1.0</b><span>First version: download, queue and lossless cutting.</span>
+    </div>
+  </div>
+  <div class="mbody" lang="nb">
     <p>Snuttefanger er et Windows-program som laster ned video og lyd med yt-dlp, og klipper filer uten kvalitetstap med FFmpeg.</p>
     <h4>Slik kommer du i gang</h4>
     <ol>
@@ -64,10 +89,11 @@ dialog::backdrop { background: rgba(10,9,16,.65); }
     <ul>
       <li>Laste ned video eller bare lyd, med valg av kvalitet og format.</li>
       <li>Pause, fortsette og avbryte nedlastinger.</li>
-      <li>Klippe ut 1 til 10 snutter fra en fil. Hver snutt blir en egen fil, og originalen endres ikke.</li>
+      <li>Klippe ut 1 til 10 snutter fra en fil. Hver snutt blir en egen fil, som video og lyd eller bare lyd, og originalen endres ikke.</li>
     </ul>
     <h4>Versjoner</h4>
     <div class="versions">
+      <b>v0.3.0</b><span>Velg Video og lyd eller Bare lyd for hvert klipp. Valgene for nedlasting vises med en gang. Norsk og engelsk.</span>
       <b>v0.2.0</b><span>Velg 1 til 10 klipp fra samme fil. Klipp starter på 0 også når filen har omslagsbilde. Infoknapp.</span>
       <b>v0.1.0</b><span>Første versjon: nedlasting, kø og tapsfritt klipp.</span>
     </div>
@@ -75,28 +101,43 @@ dialog::backdrop { background: rgba(10,9,16,.65); }
 </dialog>
 
 <script>
+// Språk: lagret valg, ellers nettleserens språk. Norsk for nb, nn og no.
+const root = document.documentElement;
+let lang = 'en';
+try { lang = localStorage.getItem('snutt-lang') || (/^(nb|nn|no)\b/i.test(navigator.language) ? 'nb' : 'en'); } catch { /* ingen lagring */ }
+const setLang = (l) => { lang = l; root.dataset.lang = l; root.lang = l; render(); try { localStorage.setItem('snutt-lang', l); } catch { /* ingen lagring */ } };
+document.getElementById('langbtn').onclick = () => setLang(lang === 'en' ? 'nb' : 'en');
+
 const info = document.getElementById('info');
 document.getElementById('infobtn').onclick = () => info.showModal();
 document.getElementById('infoclose').onclick = () => info.close();
 info.addEventListener('click', (e) => { if (e.target === info) info.close(); });
 
 // Lenken peker rett på exe-filen i siste release, så du alltid får versjonen som faktisk er bygd.
+let release = null, failed = false;
+function render() {
+  const a = document.getElementById('download'), note = document.getElementById('dlnote');
+  if (release) {
+    a.href = release.url;
+    a.textContent = lang === 'nb' ? `Last ned v${release.v} for Windows` : `Download v${release.v} for Windows`;
+    note.textContent = `${release.name}, ${release.mb} MB.`;
+  } else if (failed) {
+    note.textContent = lang === 'nb'
+      ? 'Fant ikke siste versjon automatisk. Knappen åpner listen over versjoner på GitHub.'
+      : 'Could not find the latest version automatically. The button opens the list of versions on GitHub.';
+  }
+}
+setLang(lang);
 (async () => {
-  const note = document.getElementById('dlnote');
   try {
     const r = await fetch('https://api.github.com/repos/kilemann/Snuttefanger.io/releases/latest', { headers: { Accept: 'application/vnd.github+json' } });
     if (!r.ok) throw new Error(String(r.status));
     const rel = await r.json();
-    const exe = (rel.assets || []).find((a) => /-portable\.exe$/.test(a.name));
-    if (!exe || !/^https:\/\/github\.com\//.test(exe.browser_download_url)) throw new Error('mangler exe');
-    const v = String(rel.tag_name).replace(/^v/, '');
-    const a = document.getElementById('download');
-    a.href = exe.browser_download_url;
-    a.textContent = `Last ned v${v} for Windows`;
-    note.textContent = `${exe.name}, ${Math.round(exe.size / 1048576)} MB.`;
-  } catch {
-    note.textContent = 'Fant ikke siste versjon automatisk. Knappen åpner listen over versjoner på GitHub.';
-  }
+    const exe = (rel.assets || []).find((x) => /-portable\.exe$/.test(x.name));
+    if (!exe || !/^https:\/\/github\.com\//.test(exe.browser_download_url)) throw new Error('no exe');
+    release = { url: exe.browser_download_url, v: String(rel.tag_name).replace(/^v/, ''), name: exe.name, mb: Math.round(exe.size / 1048576) };
+  } catch { failed = true; }
+  render();
 })();
 </script>
 </body>

@@ -69,11 +69,11 @@ test('tapsfri klipping lander på keyframe, bevarer kodek og lar originalen vær
   const before = statSync(bigFile).size;
   const queue = new JobQueue(() => {});
   queue.register('export', new CutRunner({ ffmpeg: () => bin.require('ffmpeg'), ffprobe: () => bin.require('ffprobe'), exportDir: () => '' }));
-  queue.enqueue('export', 'k', { input: bigFile, startSeconds: 7, endSeconds: 15 });
+  queue.enqueue('export', 'k', { input: bigFile, startSeconds: 7, endSeconds: 15, mode: 'av' });
   const job = await waitFor(queue, (j) => ['done', 'failed'].includes(j.status));
   assert.equal(job.status, 'done', job.error ?? '');
   assert.ok(existsSync(job.outputPath!));
-  assert.ok(job.outputPath!.includes('klipp 00.00.07-00.00.15'));
+  assert.ok(job.outputPath!.includes('(clip 00.00.07-00.00.15)'));
   const out = await probeMedia(bin.require('ffprobe'), job.outputPath!);
   // Start 7 s faller tilbake til keyframen ved 5 s, så klippet blir omtrent 10 s.
   assert.ok(Math.abs(out.durationSeconds - 10) < 0.5, `varighet ${out.durationSeconds}`);
@@ -101,7 +101,7 @@ test('klipp starter på 0 i alle formater, også med omslagsbilde', async () => 
     const input = join(dir, name);
     const queue = new JobQueue(() => {});
     queue.register('export', new CutRunner({ ffmpeg: () => bin.require('ffmpeg'), ffprobe: () => bin.require('ffprobe'), exportDir: () => join(dir) }));
-    queue.enqueue('export', 'k', { input, startSeconds: 7, endSeconds: 15 });
+    queue.enqueue('export', 'k', { input, startSeconds: 7, endSeconds: 15, mode: 'av' });
     const job = await waitFor(queue, (j) => ['done', 'failed'].includes(j.status));
     assert.equal(job.status, 'done', `${name}: ${job.error}`);
     const out = await probeMedia(bin.require('ffprobe'), job.outputPath!);
@@ -110,6 +110,27 @@ test('klipp starter på 0 i alle formater, også med omslagsbilde', async () => 
     const src = await probeMedia(bin.require('ffprobe'), input);
     assert.equal(out.streams.some((s) => s.attachedPic), !name.endsWith('.mkv') && src.streams.some((s) => s.attachedPic), `${name} omslag`);
     assert.equal(out.streams.filter((s) => s.type === 'video').length, src.streams.filter((s) => s.type === 'video').length, `${name} videospor`);
+  }
+});
+
+test('bare lyd: første lydspor kopieres uendret, starter på 0 og beholder omslag der beholderen tåler det', async () => {
+  const dir = join(work, 'formater');
+  const cases: [string, string, string, boolean][] = [
+    ['a-omslag.mp4', '.m4a', 'aac', true], ['a.webm', '.opus', 'opus', false], ['a.mkv', '.m4a', 'aac', true],
+  ];
+  for (const [name, ext, codec, cover] of cases) {
+    const queue = new JobQueue(() => {});
+    queue.register('export', new CutRunner({ ffmpeg: () => bin.require('ffmpeg'), ffprobe: () => bin.require('ffprobe'), exportDir: () => join(dir, 'lyd') }));
+    queue.enqueue('export', 'k', { input: join(dir, name), startSeconds: 7, endSeconds: 15, mode: 'audio' });
+    const job = await waitFor(queue, (j) => ['done', 'failed'].includes(j.status));
+    assert.equal(job.status, 'done', `${name}: ${job.error}`);
+    assert.ok(job.outputPath!.endsWith(`(audio clip 00.00.07-00.00.15)${ext}`), job.outputPath ?? "");
+    const out = await probeMedia(bin.require('ffprobe'), job.outputPath!);
+    assert.deepEqual(out.streams.filter((s) => !s.attachedPic).map((s) => s.codec), [codec], name);
+    assert.equal(out.streams.some((s) => s.attachedPic), cover, `${name} omslag`);
+    assert.ok(out.startSeconds < 0.05, `${name} starter på ${out.startSeconds}`);
+    assert.ok(Math.abs(out.durationSeconds - 8) < 0.1, `${name} varer ${out.durationSeconds}`);
+    assert.equal(job.note, undefined);
   }
 });
 

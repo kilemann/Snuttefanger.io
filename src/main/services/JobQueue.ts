@@ -98,7 +98,7 @@ export class JobQueue {
 
   private run(e: Entry): void {
     const runner = this.runners[e.kind];
-    if (!runner) throw new Error(`Ingen kjører for ${e.kind}`);
+    if (!runner) throw new Error(`No runner for ${e.kind}`);
     e.job.status = 'running';
     e.intent = undefined;
     this.changed();

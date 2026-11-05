@@ -22,8 +22,9 @@ export function registerSchemePrivileges(): void {
 
 export function mediaSrc(path: string): string {
   const token = randomUUID();
-  opened.clear();
+  // De siste filene beholdes litt, så avspilleren som er på vei bort ikke får 404 midt i en forespørsel.
   opened.set(token, path);
+  while (opened.size > 4) opened.delete(opened.keys().next().value!);
   return `${MEDIA_SCHEME}://file/${token}`;
 }
 
@@ -39,7 +40,7 @@ export function registerMediaHandler(): void {
   protocol.handle(MEDIA_SCHEME, async (request) => {
     const token = new URL(request.url).pathname.slice(1);
     const path = opened.get(token);
-    if (!path) return new Response('Ikke funnet', { status: 404 });
+    if (!path) return new Response('Not found', { status: 404 });
     const { size } = await stat(path);
     const type = MIME[extname(path).toLowerCase()] ?? 'application/octet-stream';
     const header = request.headers.get('range');

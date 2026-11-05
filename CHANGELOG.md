@@ -1,31 +1,44 @@
-# Endringslogg
+# Changelog
 
-Prosjektet bruker [semantisk versjonering](https://semver.org/lang/nb/).
+The project uses [semantic versioning](https://semver.org/).
+
+## 0.3.0 (2026-11-05)
+
+### Added
+- Choose Video and audio or Audio only for each clip in the Cut tab. Audio only copies the first audio track without re-encoding into a matching container, for example M4A for AAC and OPUS for Opus.
+- English and Norwegian. Choose the language under Settings. The first time, the app follows the Windows language. Messages, job titles and clip file names follow the choice.
+- The download page has a language switch.
+- The settings page says "All tools are installed" when there is nothing to install.
+
+### Changed
+- The download choices (video and audio, or audio only) are visible before you get info.
+- The documentation is in English.
+- Clip files are named "(clip …)" and "(audio clip …)" in English, and "(klipp …)" and "(lydklipp …)" in Norwegian.
 
 ## 0.2.0 (2026-11-05)
 
-### Lagt til
-- Velg 1 til 10 klipp fra samme fil. Hvert klipp eksporteres til sin egen fil.
-- Infoknapp ved siden av versjonsnummeret, med hjelp og versjonshistorikk.
+### Added
+- Choose 1 to 10 clips from the same file. Each clip is exported to its own file.
+- Info button next to the version number, with help and version history.
 
-### Endret
-- Appnavn og versjon står øverst til venstre.
-- FLAC-klipp kodes på nytt som FLAC. Det er matematisk tapsfritt, og gir riktig lengde og tid fra 0.
+### Changed
+- App name and version are shown at the top left.
+- FLAC clips are re-encoded as FLAC. This is mathematically lossless and gives the right length and a start at 0.
 
-### Rettet
-- Klipp fra filer med omslagsbilde beholdt tidsstemplene fra originalen, så avspilling ikke startet på 0.
+### Fixed
+- Clips from files with cover art kept the timestamps of the original, so playback did not start at 0.
 
-### Kjent begrensning
-- Klipp fra MKV-filer får ikke med omslagsbildet.
+### Known limitation
+- Clips from MKV files do not keep the cover art.
 
 ## 0.1.0 (2026-11-04)
 
-### Lagt til
-- Nedlasting av enkeltvideoer med yt-dlp, med valg av kvalitet og format.
-- Kø med pause, fortsett, avbryt og prøv igjen.
-- Tapsfritt klipp av ett segment med FFmpeg.
-- Åpning av lokale filer med filvelger eller dra og slipp.
-- Forhåndsvisning, klippestripe og hurtigtaster.
-- Installasjon av yt-dlp, FFmpeg og Deno med kontroll av sjekksum.
-- Innstillinger for mapper, standardvalg og verktøystier.
-- Portabelt Windows-bygg via GitHub Actions.
+### Added
+- Download single videos with yt-dlp, with a choice of quality and format.
+- Queue with pause, resume, cancel and retry.
+- Lossless cut of one segment with FFmpeg.
+- Open local files with the file picker or drag and drop.
+- Preview, clip strip and keyboard shortcuts.
+- Installation of yt-dlp, FFmpeg and Deno with checksum verification.
+- Settings for folders, defaults and tool paths.
+- Portable Windows build in GitHub Actions.

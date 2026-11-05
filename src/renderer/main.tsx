@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
+import type { TextKey } from '../shared/i18n';
 import type { Job, OpenedMedia, Settings, SnuttApi } from '../shared/types';
+import { setLanguage, t, tm } from './i18n';
 import { DownloadView } from './views/DownloadView';
 import { EditorView } from './views/EditorView';
 import { InfoDialog } from './views/InfoDialog';
@@ -11,9 +13,9 @@ declare global { interface Window { snutt: SnuttApi; } }
 const api = window.snutt;
 
 export type View = 'download' | 'editor' | 'queue' | 'settings';
-const NAV: { id: View; label: string }[] = [
-  { id: 'download', label: 'Last ned' }, { id: 'editor', label: 'Klipp' },
-  { id: 'queue', label: 'Kø' }, { id: 'settings', label: 'Innstillinger' },
+const NAV: { id: View; label: TextKey }[] = [
+  { id: 'download', label: 'nav.download' }, { id: 'editor', label: 'nav.cut' },
+  { id: 'queue', label: 'nav.queue' }, { id: 'settings', label: 'nav.settings' },
 ];
 
 function App() {
@@ -27,7 +29,7 @@ function App() {
 
   const refreshTools = async () => {
     const tools = await api.getTools();
-    setToolsMissing(tools.some((t) => t.name !== 'deno' && !t.version));
+    setToolsMissing(tools.some((tool) => tool.name !== 'deno' && !tool.version));
   };
 
   useEffect(() => {
@@ -46,26 +48,27 @@ function App() {
 
   const active = jobs.filter((j) => j.status === 'running' || j.status === 'queued').length;
   if (!settings) return null;
+  setLanguage(settings.language);
 
   return (
     <div className="app">
-      <nav className="side" aria-label="Hovedmeny">
+      <nav className="side" aria-label={t('app.menu')}>
         <div className="brand-row">
           <div className="brand">Snuttefanger</div>
           <div className="ver">v{api.version}</div>
-          <button className="infobtn" aria-label="Om appen og hjelp" title="Om appen og hjelp" onClick={() => setInfoOpen(true)}>i</button>
+          <button className="infobtn" aria-label={t('app.about')} title={t('app.about')} onClick={() => setInfoOpen(true)}>i</button>
         </div>
         {NAV.map((n) => (
           <button key={n.id} aria-current={view === n.id ? 'page' : undefined} onClick={() => setView(n.id)}>
-            {n.label}{n.id === 'queue' && active > 0 && <span className="count">{active}</span>}
+            {t(n.label)}{n.id === 'queue' && active > 0 && <span className="count">{active}</span>}
           </button>
         ))}
       </nav>
       <main className="main">
         {toolsMissing && view !== 'settings' && (
           <div className="banner row">
-            <div className="grow">Snuttefanger trenger yt-dlp og FFmpeg før den kan laste ned og klippe.</div>
-            <button className="btn primary" onClick={() => setView('settings')}>Gå til verktøy</button>
+            <div className="grow">{t('app.toolsBanner')}</div>
+            <button className="btn primary" onClick={() => setView('settings')}>{t('app.goToTools')}</button>
           </div>
         )}
         {view === 'download' && <DownloadView settings={settings} onQueued={() => setView('queue')} />}
@@ -80,7 +83,7 @@ function App() {
 
 export function cleanError(e: unknown): string {
   const m = e instanceof Error ? e.message : String(e);
-  return m.replace(/^Error invoking remote method '[^']+': (Error: )?/, '');
+  return tm(m.replace(/^Error invoking remote method '[^']+': (Error: )?/, ''));
 }
 
 createRoot(document.getElementById('root')!).render(<App />);
