@@ -60,7 +60,9 @@ function WaveCanvas({ wave, viewStart, viewSpan }: { wave: Waveform; viewStart: 
   }, [wave, viewStart, viewSpan, width]);
   return <canvas ref={ref} className="strip-wave" aria-hidden="true" />;
 }
-interface Clip { start: number; end: number; mode: CutMode; fmt: AudioTarget; }
+interface Clip { start: number; end: number; mode: CutMode; fmt: AudioTarget; name: string; }
+interface Snap { clips: Clip[]; count: number }
+const HISTORY = 100;
 
 function TimeField({ label, value, onCommit, onFocus }: { label: string; value: number; onCommit(v: number): void; onFocus(): void }) {
   const [text, setText] = useState(formatTime(value));
@@ -75,7 +77,7 @@ function TimeField({ label, value, onCommit, onFocus }: { label: string; value: 
   );
 }
 
-export function EditorView({ media, error, onOpen, onQueued }: { media: OpenedMedia | null; error: string | null; onOpen(p: string): void; onQueued(): void }) {
+export function EditorView({ media, error, onOpen, onQueued, onSendToJoin }: { media: OpenedMedia | null; error: string | null; onOpen(p: string): void; onQueued(): void; onSendToJoin(ids: string[]): void }) {
   const [over, setOver] = useState(false);
   const pick = async () => { const p = await api.pickMedia(); if (p) onOpen(p); };
   const onDrop = (e: DragEvent) => {
@@ -107,12 +109,12 @@ export function EditorView({ media, error, onOpen, onQueued }: { media: OpenedMe
         <button className="btn" onClick={pick}>{t('cut.openAnother')}</button>
       </div>
       {error && <p className="error" role="alert">{error}</p>}
-      <Cutter key={media.src} media={media} onQueued={onQueued} />
+      <Cutter key={media.src} media={media} onQueued={onQueued} onSendToJoin={onSendToJoin} />
     </div>
   );
 }
 
-function Cutter({ media, onQueued }: { media: OpenedMedia; onQueued(): void }) {
+function Cutter({ media, onQueued, onSendToJoin }: { media: OpenedMedia; onQueued(): void; onSendToJoin(ids: string[]): void }) {
   const duration = media.durationSeconds;
   const hasVideo = media.streams.some((s) => s.type === 'video');
   const hasAudio = media.streams.some((s) => s.type === 'audio');
@@ -125,7 +127,7 @@ function Cutter({ media, onQueued }: { media: OpenedMedia; onQueued(): void }) {
   const stripRef = useRef<HTMLDivElement>(null);
   const [time, setTime] = useState(0);
   // Klipp over valgt antall beholdes, så de kommer tilbake hvis antallet settes opp igjen.
-  const [clips, setClips] = useState<Clip[]>([{ start: 0, end: duration, mode: 'av', fmt: 'original' }]);
+  const [clips, setClips] = useState<Clip[]>([{ start: 0, end: duration, mode: 'av', fmt: 'original', name: '' }]);
   const [count, setCount] = useState(1);
   const [active, setActive] = useState(0);
   const [playing, setPlaying] = useState(false);
@@ -153,17 +155,54 @@ function Cutter({ media, onQueued }: { media: OpenedMedia; onQueued(): void }) {
       if (p && p.clips.length > 0) {
         const fixed = p.clips.map((c) => {
           const start = Math.min(Math.max(0, c.start), Math.max(0, duration - 0.01));
-          return { start, end: Math.min(duration, Math.max(c.end, start + 0.01)), mode: c.mode === 'audio' ? 'audio' as const : 'av' as const, fmt: AUDIO_TARGETS.includes(c.fmt) ? c.fmt : 'original' as const };
+          return { start, end: Math.min(duration, Math.max(c.end, start + 0.01)), mode: c.mode === 'audio' ? 'audio' as const : 'av' as const, fmt: AUDIO_TARGETS.includes(c.fmt) ? c.fmt : 'original' as const, name: typeof c.name === 'string' ? c.name : '' };
         });
         setClips(fixed);
         setCount(Math.min(Math.max(1, p.count), fixed.length));
         setActive(Math.min(Math.max(0, p.active), fixed.length - 1));
         setRestored(true);
+        past.current = []; future.current = []; bumpHistory();
       }
       loaded.current = true;
     }, () => { loaded.current = true; });
     return () => { alive = false; };
   }, [media.path, duration]);
+
+  // Angre og gjør om: øyeblikksbilder av klippene. Valgt klipp regnes ikke som en endring.
+  const past = useRef<Snap[]>([]);
+  const future = useRef<Snap[]>([]);
+  const latest = useRef<Snap>({ clips, count });
+  latest.current = { clips, count };
+  const [, setHistoryTick] = useState(0);
+  const bumpHistory = () => setHistoryTick((n) => n + 1);
+  const same = (a: Snap, b: Snap) => a.count === b.count && JSON.stringify(a.clips) === JSON.stringify(b.clips);
+  const record = useCallback(() => {
+    // Samme tilstand to ganger (for eksempel når et felt bekreftes uten endring) gir ikke et ekstra angresteg.
+    const top = past.current.at(-1);
+    if (top && same(top, latest.current)) return;
+    past.current.push(latest.current);
+    if (past.current.length > HISTORY) past.current.shift();
+    future.current = [];
+    bumpHistory();
+  }, []);
+  const restore = (snap: Snap) => {
+    setClips(snap.clips); setCount(snap.count);
+    setActive((a) => Math.min(a, snap.count - 1));
+  };
+  const undo = useCallback(() => {
+    while (past.current.length > 0 && same(past.current.at(-1)!, latest.current)) past.current.pop();
+    const snap = past.current.pop();
+    if (!snap) return;
+    future.current.push(latest.current);
+    restore(snap); bumpHistory();
+  }, []);
+  const redo = useCallback(() => {
+    while (future.current.length > 0 && same(future.current.at(-1)!, latest.current)) future.current.pop();
+    const snap = future.current.pop();
+    if (!snap) return;
+    past.current.push(latest.current);
+    restore(snap); bumpHistory();
+  }, []);
 
   const clamp = useCallback((v: number) => Math.min(duration, Math.max(0, v)), [duration]);
   const seek = useCallback((v: number) => {
@@ -182,11 +221,12 @@ function Cutter({ media, onQueued }: { media: OpenedMedia; onQueued(): void }) {
   }, [unplayable]);
 
   const changeCount = (next: number) => {
+    record();
     setClips((all) => {
       const out = [...all];
       while (out.length < next) {
         const start = Math.min(time, Math.max(0, duration - 1));
-        out.push({ start, end: duration, mode: out[out.length - 1].mode, fmt: out[out.length - 1].fmt });
+        out.push({ start, end: duration, mode: out[out.length - 1].mode, fmt: out[out.length - 1].fmt, name: '' });
       }
       return out;
     });
@@ -203,7 +243,8 @@ function Cutter({ media, onQueued }: { media: OpenedMedia; onQueued(): void }) {
 
   const resetProject = async () => {
     await api.forgetProject(media.path).catch(() => {});
-    setClips([{ start: 0, end: duration, mode: 'av', fmt: 'original' }]);
+    record();
+    setClips([{ start: 0, end: duration, mode: 'av', fmt: 'original', name: '' }]);
     setCount(1); setActive(0); setRestored(false);
   };
 
@@ -243,6 +284,12 @@ function Cutter({ media, onQueued }: { media: OpenedMedia; onQueued(): void }) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (document.querySelector('dialog[open]')) return;
+      // Ctrl+Z i et tekstfelt angrer teksten, ikke klippene.
+      if ((e.ctrlKey || e.metaKey) && !(e.target instanceof HTMLInputElement && e.target.type === 'text')) {
+        const k = e.key.toLowerCase();
+        if (k === 'z' && !e.shiftKey) { e.preventDefault(); undo(); return; }
+        if (k === 'y' || (k === 'z' && e.shiftKey)) { e.preventDefault(); redo(); return; }
+      }
       if (e.target instanceof HTMLInputElement && e.target.type === 'text') return;
       if (e.target instanceof HTMLSelectElement) return;
       const now = ref.current?.currentTime ?? time;
@@ -250,14 +297,14 @@ function Cutter({ media, onQueued }: { media: OpenedMedia; onQueued(): void }) {
         if (e.target instanceof HTMLButtonElement) return; // Mellomrom trykker på knappen som har fokus.
         e.preventDefault(); toggle();
       }
-      else if (e.key === 'i' || e.key === 'I') setIn(active, snapT(now));
-      else if (e.key === 'o' || e.key === 'O') setOut(active, snapT(now));
+      else if (e.key === 'i' || e.key === 'I') { record(); setIn(active, snapT(now)); }
+      else if (e.key === 'o' || e.key === 'O') { record(); setOut(active, snapT(now)); }
       else if (e.key === 'ArrowLeft') { e.preventDefault(); seek(now - (e.shiftKey ? 10 : 1)); }
       else if (e.key === 'ArrowRight') { e.preventDefault(); seek(now + (e.shiftKey ? 10 : 1)); }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [time, active, toggle, setIn, setOut, seek, snapT]);
+  }, [time, active, toggle, setIn, setOut, seek, snapT, record, undo, redo]);
 
   const fromPointer = (clientX: number) => {
     const r = stripRef.current!.getBoundingClientRect();
@@ -273,18 +320,19 @@ function Cutter({ media, onQueued }: { media: OpenedMedia; onQueued(): void }) {
   };
   const pct = (v: number) => `${((v - view.start) / view.span) * 100}%`;
 
-  const exportCuts = async () => {
+  const exportCuts = async (toJoin = false) => {
     setError(null);
     try {
-      await api.startCuts({
+      const ids = await api.startCuts({
         input: media.path,
         clips: visible.map((c) => ({
           startSeconds: c.start, endSeconds: c.end, audioFormat: isAudioClip(c) ? c.fmt : 'original',
           // Rene lydfiler med Original kopieres som før, med alle spor. Andre formater lager et lydklipp.
           mode: hasVideo ? (canChoose ? c.mode : 'av') : (c.fmt === 'original' ? 'av' : 'audio'),
+          name: c.name,
         })),
       });
-      onQueued();
+      if (toJoin) onSendToJoin(ids); else onQueued();
     } catch (e) { setError(cleanError(e)); }
   };
 
@@ -308,14 +356,16 @@ function Cutter({ media, onQueued }: { media: OpenedMedia; onQueued(): void }) {
           </div>
         ))}
         <div className="strip-head" style={{ left: pct(time), zIndex: 3 }} />
-        <button className="strip-handle" style={{ left: pct(clips[active].start), zIndex: 4 }} aria-label={t('cut.dragStart')} onPointerDown={drag((v) => setIn(active, snapT(v)))} />
-        <button className="strip-handle" style={{ left: pct(clips[active].end), zIndex: 4 }} aria-label={t('cut.dragEnd')} onPointerDown={drag((v) => setOut(active, snapT(v)))} />
+        <button className="strip-handle" style={{ left: pct(clips[active].start), zIndex: 4 }} aria-label={t('cut.dragStart')} onPointerDown={(e) => { record(); drag((v) => setIn(active, snapT(v)))(e); }} />
+        <button className="strip-handle" style={{ left: pct(clips[active].end), zIndex: 4 }} aria-label={t('cut.dragEnd')} onPointerDown={(e) => { record(); drag((v) => setOut(active, snapT(v)))(e); }} />
       </div>
       <div className="wave-bar row small">
         <button className="btn" aria-label={t('cut.zoomOut')} title={t('cut.zoomOut')} disabled={!zoomed} onClick={() => zoom(2, time)}>−</button>
         <button className="btn" aria-label={t('cut.zoomIn')} title={t('cut.zoomIn')} disabled={view.span <= Math.min(MIN_SPAN, duration) + 0.001} onClick={() => zoom(0.5, time)}>+</button>
         <button className="btn" disabled={!zoomed} onClick={() => setView({ start: 0, span: duration })}>{t('cut.zoomFit')}</button>
         <span className="muted num">{formatTime(view.start).replace(/\.\d+$/, '')}–{formatTime(view.start + view.span).replace(/\.\d+$/, '')}</span>
+        <button className="btn" title={`${t('cut.undo')} (Ctrl+Z)`} disabled={past.current.length === 0} onClick={undo}>↶ {t('cut.undo')}</button>
+        <button className="btn" title={`${t('cut.redo')} (Ctrl+Y)`} disabled={future.current.length === 0} onClick={redo}>↷ {t('cut.redo')}</button>
         <div className="grow" />
         {waveLoading && <span className="muted">{t('cut.waveLoading')}</span>}
         {wave && (
@@ -337,41 +387,44 @@ function Cutter({ media, onQueued }: { media: OpenedMedia; onQueued(): void }) {
             {Array.from({ length: MAX_CLIPS }, (_, i) => <option key={i + 1} value={i + 1}>{i + 1}</option>)}
           </select>
         </label>
-        <button className="btn primary" onClick={exportCuts}>{count === 1 ? t('cut.export1') : t('cut.exportN', { n: String(count) })}</button>
+        {hasAudio && <button className="btn" onClick={() => exportCuts(true)}>{t('cut.toJoin')}</button>}
+        <button className="btn primary" onClick={() => exportCuts()}>{count === 1 ? t('cut.export1') : t('cut.exportN', { n: String(count) })}</button>
       </div>
       {error && <p className="error" role="alert">{error}</p>}
-      <div className="clips" style={{ gridTemplateColumns: `auto auto 128px 128px auto auto${canChoose ? ' auto' : ''}${formatColumn ? ' auto' : ''}` }}>
+      <div className="clips" style={{ gridTemplateColumns: `auto auto 120px 120px auto auto${canChoose ? ' auto' : ''}${formatColumn ? ' auto' : ''}` }}>
         <div /><div /><div className="clips-head">{t('cut.start')}</div><div className="clips-head">{t('cut.end')}</div><div />
         <div className="clips-head">{t('cut.length')}</div>{canChoose && <div className="clips-head">{t('cut.mode')}</div>}
         {formatColumn && <div className="clips-head">{t('cut.format')}</div>}
         {visible.map((c, i) => (
           <div className={`clip-row ${i === active ? 'active' : ''}`} key={i} data-clip={i + 1}>
-            <label className="clip-name">
-              <input type="radio" name="active-clip" checked={i === active} onChange={() => selectClip(i)} />
-              {t('cut.clipN', { n: String(i + 1) })}
-            </label>
-            <button className="btn" title={t('cut.setStartTip')} onClick={() => { setActive(i); setIn(i, snapT(time)); }}>{t('cut.setStart')}</button>
-            <TimeField label={t('cut.startN', { n: String(i + 1) })} value={c.start} onFocus={() => setActive(i)} onCommit={(v) => setIn(i, v)} />
-            <TimeField label={t('cut.endN', { n: String(i + 1) })} value={c.end} onFocus={() => setActive(i)} onCommit={(v) => setOut(i, v)} />
-            <button className="btn" title={t('cut.setEndTip')} onClick={() => { setActive(i); setOut(i, snapT(time)); }}>{t('cut.setEnd')}</button>
+            <div className="clip-name">
+              <input type="radio" name="active-clip" aria-label={t('cut.selectN', { n: String(i + 1) })} checked={i === active} onChange={() => selectClip(i)} />
+              <input type="text" className="clip-title" aria-label={t('cut.nameN', { n: String(i + 1) })} placeholder={t('cut.clipN', { n: String(i + 1) })}
+                value={c.name} maxLength={120} onFocus={() => { setActive(i); record(); }}
+                onChange={(e) => update(i, (old) => ({ ...old, name: e.target.value }))} onKeyDown={(e) => e.stopPropagation()} />
+            </div>
+            <button className="btn" title={t('cut.setStartTip')} onClick={() => { setActive(i); record(); setIn(i, snapT(time)); }}>{t('cut.setStart')}</button>
+            <TimeField label={t('cut.startN', { n: String(i + 1) })} value={c.start} onFocus={() => setActive(i)} onCommit={(v) => { if (Math.abs(v - c.start) > 0.0005) { record(); setIn(i, v); } }} />
+            <TimeField label={t('cut.endN', { n: String(i + 1) })} value={c.end} onFocus={() => setActive(i)} onCommit={(v) => { if (Math.abs(v - c.end) > 0.0005) { record(); setOut(i, v); } }} />
+            <button className="btn" title={t('cut.setEndTip')} onClick={() => { setActive(i); record(); setOut(i, snapT(time)); }}>{t('cut.setEnd')}</button>
             <div className="num small muted">{formatTime(c.end - c.start)}</div>
             {canChoose && (
               <select aria-label={t('cut.modeN', { n: String(i + 1) })} value={c.mode} onFocus={() => setActive(i)}
-                onChange={(e) => update(i, (old) => ({ ...old, mode: e.target.value as CutMode }))}>
+                onChange={(e) => { record(); update(i, (old) => ({ ...old, mode: e.target.value as CutMode })); }}>
                 <option value="av">{t('cut.av')}</option>
                 <option value="audio">{t('cut.audio')}</option>
               </select>
             )}
             {formatColumn && (isAudioClip(c) ? (
               <select aria-label={t('cut.formatN', { n: String(i + 1) })} value={c.fmt} onFocus={() => setActive(i)}
-                onChange={(e) => update(i, (old) => ({ ...old, fmt: e.target.value as AudioTarget }))}>
+                onChange={(e) => { record(); update(i, (old) => ({ ...old, fmt: e.target.value as AudioTarget })); }}>
                 {AUDIO_TARGETS.map((f) => <option key={f} value={f}>{f === 'original' ? t('cut.original') : f.toUpperCase()}</option>)}
               </select>
             ) : <div />)}
           </div>
         ))}
       </div>
-      <p className="muted small">{t('cut.noteAv')}{canChoose ? ` ${t('cut.noteAudio')}` : ''}</p>
+      <p className="muted small">{t('cut.nameNote')} {t('cut.noteAv')}{canChoose ? ` ${t('cut.noteAudio')}` : ''}</p>
       {formatColumn && <p className="muted small">{t('cut.noteFormat')}</p>}
       <p className="muted small">
         {t('cut.scClip')} <kbd>I</kbd> {t('cut.scStart')}, <kbd>O</kbd> {t('cut.scEnd')}. {t('cut.scPlayback')} <kbd>{t('cut.scSpace')}</kbd> {t('cut.scPlay')}, <kbd>←</kbd> <kbd>→</kbd> {t('cut.scSecond')} <kbd>Shift</kbd> {t('cut.scTen')}. {wave ? t('cut.zoomHint') : ''}

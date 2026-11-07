@@ -25,11 +25,21 @@ jobs:
         run: |
           npm install --no-save playwright-core@1.63.0
           node tests/e2e-win.cjs
+      - name: Installer stille og test den installerte appen
+        shell: pwsh
+        run: |
+          $setup = Get-ChildItem release -Filter 'Snuttefanger-Setup-*.exe' | Select-Object -First 1
+          Start-Process -FilePath $setup.FullName -ArgumentList '/S' -Wait
+          $exe = Join-Path $env:LOCALAPPDATA 'Programs\Snuttefanger\Snuttefanger.exe'
+          if (-not (Test-Path $exe)) { throw "Fant ikke $exe etter installasjon" }
+          if (-not (Test-Path (Join-Path ([Environment]::GetFolderPath('Desktop')) 'Snuttefanger.lnk'))) { throw 'Snarveien på skrivebordet mangler' }
+          node tests/e2e-win.cjs $exe
       - uses: actions/upload-artifact@v4
         with:
-          name: Snuttefanger-portable
+          name: Snuttefanger-windows
           path: |
-            release/*.exe
+            release/Snuttefanger-Setup-*.exe
+            release/Snuttefanger-*-win.zip
             release/*.png
           if-no-files-found: error
       - uses: actions/upload-artifact@v4
@@ -48,5 +58,5 @@ jobs:
             echo "$TAG finnes allerede"
           else
             node -e "const s=require('fs').readFileSync('CHANGELOG.md','utf8');const m=s.split(/^## /m).find(x=>x.startsWith(process.argv[1].slice(1)+' '));process.stdout.write(m?m.split('\n').slice(1).join('\n').trim():'Se CHANGELOG.md.')" "$TAG" > notes.md
-            gh release create "$TAG" release/*.exe --target "$GITHUB_SHA" --title "Snuttefanger $TAG" --notes-file notes.md
+            gh release create "$TAG" release/Snuttefanger-Setup-*.exe release/Snuttefanger-*-win.zip --target "$GITHUB_SHA" --title "Snuttefanger $TAG" --notes-file notes.md
           fi

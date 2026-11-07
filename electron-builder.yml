@@ -9,6 +9,17 @@ files:
   - package.json
 win:
   icon: build/icon.png
-  target: portable
-portable:
-  artifactName: Snuttefanger-${version}-portable.exe
+  # Installasjonsprogram og zip starter raskt. Den portable exe-filen pakket ut 110 MB ved hver oppstart.
+  target:
+    - nsis
+    - zip
+nsis:
+  # Installeres for brukeren alene, uten administratorrettigheter, til %LOCALAPPDATA%\Programs\Snuttefanger.
+  oneClick: true
+  perMachine: false
+  artifactName: Snuttefanger-Setup-${version}.exe
+  shortcutName: Snuttefanger
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+zip:
+  artifactName: Snuttefanger-${version}-win.zip

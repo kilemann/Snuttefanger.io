@@ -85,6 +85,8 @@ export interface CutRequest {
   endSeconds: number;
   mode: CutMode;
   audioFormat?: AudioTarget;
+  /** Valgfritt navn som blir filnavnet. */
+  name?: string;
 }
 
 export interface JoinEffects {
@@ -116,14 +118,14 @@ export interface Waveform { peaksPerSecond: number; peaks: Uint8Array; maxPeak: 
 export interface ClipProject {
   count: number;
   active: number;
-  clips: { start: number; end: number; mode: CutMode; fmt: AudioTarget }[];
+  clips: { start: number; end: number; mode: CutMode; fmt: AudioTarget; name?: string }[];
 }
 
 export interface PreviewResult { src: string; durationSeconds: number; path: string }
 
 export interface CutBatch {
   input: string;
-  clips: { startSeconds: number; endSeconds: number; mode: CutMode; audioFormat: AudioTarget }[];
+  clips: { startSeconds: number; endSeconds: number; mode: CutMode; audioFormat: AudioTarget; name?: string }[];
 }
 
 export interface Settings {
@@ -139,7 +141,12 @@ export interface Settings {
   ffprobePath: string;
   denoPath: string;
   language: Language;
+  checkUpdates: boolean;
+  /** Versjonen brukeren har sagt Ikke nå til. */
+  dismissedVersion: string;
 }
+
+export interface UpdateInfo { latest: string; newer: boolean }
 
 export type ToolName = 'ytDlp' | 'ffmpeg' | 'ffprobe' | 'deno';
 
@@ -174,6 +181,8 @@ export interface SnuttApi {
   saveProject(path: string, project: ClipProject): Promise<void>;
   forgetProject(path: string): Promise<void>;
   onPreview(listener: (percent: number) => void): () => void;
+  checkUpdate(): Promise<UpdateInfo | null>;
+  openDownloadPage(): Promise<void>;
   fetchUrlInfo(url: string): Promise<UrlInfo>;
   startDownload(request: DownloadRequest): Promise<void>;
   pickMedia(): Promise<string | null>;
@@ -182,7 +191,8 @@ export interface SnuttApi {
   startJoin(request: JoinRequest): Promise<void>;
   openMedia(path: string): Promise<OpenedMedia>;
   pathForFile(file: File): string;
-  startCuts(batch: CutBatch): Promise<void>;
+  /** Gir id-ene til jobbene, i samme rekkefølge som klippene. */
+  startCuts(batch: CutBatch): Promise<string[]>;
   getJobs(): Promise<Job[]>;
   pauseJob(id: string): Promise<void>;
   resumeJob(id: string): Promise<void>;

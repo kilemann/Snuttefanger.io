@@ -5,7 +5,8 @@ const { join } = require('node:path');
 const { tmpdir } = require('node:os');
 
 (async () => {
-  const exe = join(__dirname, '..', 'release', 'win-unpacked', 'Snuttefanger.exe');
+  // Første argument: stien til exe-filen som skal testes, for eksempel den installerte.
+  const exe = process.argv[2] || join(__dirname, '..', 'release', 'win-unpacked', 'Snuttefanger.exe');
   const app = await _electron.launch({ executablePath: exe, env: { ...process.env, SNUTT_USER_DATA: mkdtempSync(join(tmpdir(), 'snutt-win-')) } });
   const page = await app.firstWindow();
   page.on('console', (m) => console.log('konsoll:', m.type(), m.text()));

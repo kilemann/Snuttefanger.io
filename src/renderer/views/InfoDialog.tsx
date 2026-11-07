@@ -22,6 +22,8 @@ const CONTENT: Record<Language, Content> = {
         'Select the clip you are working on, and set start and end with the buttons, the keys or the strip.',
         'The waveform shows where there is sound. Zoom with the + and − buttons or Ctrl + scroll wheel. Snap to silence moves start and end to the quietest point nearby.',
         'The clips are remembered for each file until you choose Start over.',
+        'Give a clip a name to use it as the file name. Undo and redo with the buttons or Ctrl+Z and Ctrl+Y.',
+        'Export and add to Join exports the clips and puts them in Join in order.',
         'The original file is never changed. Clips are saved next to it, or in the folder chosen under Settings.',
       ]],
       ['Joining audio', [
@@ -48,6 +50,7 @@ const CONTENT: Record<Language, Content> = {
     ],
     versionsTitle: 'Versions',
     versions: [
+      ['v0.7.0', 'Installer and faster start, update notice, new icon, clip names, undo and redo, and Export and add to Join.'],
       ['v0.6.1', 'Speed in Join is chosen for each file.'],
       ['v0.6.0', 'Waveform with zoom and snap to silence. Clips are remembered. Join effects, title and artist, and listening before export. Smaller FFmpeg.'],
       ['v0.5.0', 'New Join menu: join audio files into one, without re-encoding when the formats match.'],
@@ -74,6 +77,8 @@ const CONTENT: Record<Language, Content> = {
         'Merk hvilket klipp du jobber med, og sett start og slutt med knappene, tastene eller stripen.',
         'Bølgeformen viser hvor det er lyd. Zoom med knappene + og − eller Ctrl + musehjul. Fest til stillhet flytter start og slutt til det stilleste punktet i nærheten.',
         'Klippene huskes for hver fil til du velger Start på nytt.',
+        'Gi et klipp et navn for å bruke det som filnavn. Angre og gjør om med knappene eller Ctrl+Z og Ctrl+Y.',
+        'Eksporter og legg i Skjøt eksporterer klippene og legger dem i Skjøt i riktig rekkefølge.',
         'Originalfilen endres aldri. Klippene lagres ved siden av den, eller i mappen du har valgt under Innstillinger.',
       ]],
       ['Slik skjøter du lyd', [
@@ -100,6 +105,7 @@ const CONTENT: Record<Language, Content> = {
     ],
     versionsTitle: 'Versjoner',
     versions: [
+      ['v0.7.0', 'Installasjonsprogram og raskere oppstart, varsel om ny versjon, nytt ikon, navn på klipp, angre og gjør om, og Eksporter og legg i Skjøt.'],
       ['v0.6.1', 'Hastighet i Skjøt velges for hver fil.'],
       ['v0.6.0', 'Bølgeform med zoom og fest til stillhet. Klippene huskes. Effekter, tittel og artist, og lytting før eksport i Skjøt. Mindre FFmpeg.'],
       ['v0.5.0', 'Ny Skjøt-meny: skjøt lydfiler til én fil, uten omkoding når formatene er like.'],

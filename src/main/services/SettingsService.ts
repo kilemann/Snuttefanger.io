@@ -23,6 +23,8 @@ export function sanitizeSettings(raw: Partial<Settings>, defaults: Settings): Se
     ffprobePath: str(raw.ffprobePath, ''),
     denoPath: str(raw.denoPath, ''),
     language: isLanguage(raw.language) ? raw.language : defaults.language,
+    checkUpdates: typeof raw.checkUpdates === 'boolean' ? raw.checkUpdates : defaults.checkUpdates,
+    dismissedVersion: str(raw.dismissedVersion, '').slice(0, 40),
   };
 }
 

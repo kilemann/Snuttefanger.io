@@ -14,8 +14,8 @@ A Windows app that downloads video and audio with yt-dlp and cuts files lossless
 | Language | English and Norwegian | Decided by Kilemann in v0.3. The main process sends messages as keys, and the GUI translates them when they are shown. |
 | Settings | JSON | SQLite is considered first for history in phase 4. |
 | FFmpeg, yt-dlp and Deno | Downloaded on first start (shared FFmpeg build on Windows) | Not in the repository or the exe. SHA-256 is verified. yt-dlp is updated separately. |
-| Packaging | Portable exe in GitHub Releases | No installer or code signing. SmartScreen may warn. |
-| App updates | Notification only | Planned for phase 5. |
+| Packaging | Installer (per user, no admin) and ZIP in GitHub Releases | Changed in v0.7: the portable exe unpacked itself on every start. No code signing, so SmartScreen may warn. |
+| App updates | Notification only | Done in v0.7: checks GitHub on start, can be turned off. |
 
 Hardware acceleration is postponed until re-encoding exists, and is not part of phase 1.
 

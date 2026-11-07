@@ -24,7 +24,7 @@ function describeAudio(info: MediaInfo): string {
 const effectsOn = (e: JoinEffects) => e.speeds.some((s) => s !== 1) || e.trimSilence || e.normalize || e.fadeIn > 0 || e.fadeOut > 0 || e.crossfade > 0;
 const speedLabel = (s: number) => `${getLanguage() === 'nb' ? String(s).replace('.', ',') : String(s)}x`;
 
-export function JoinView({ state, setState, onQueued }: { state: JoinState; setState(f: (old: JoinState) => JoinState): void; onQueued(): void }) {
+export function JoinView({ state, setState, onQueued, pending, failed }: { state: JoinState; setState(f: (old: JoinState) => JoinState): void; onQueued(): void; pending: number; failed: number }) {
   const { items } = state;
   // Hastigheten ligger på hver fil, så den følger med når rekkefølgen endres.
   const effects: JoinEffects = { ...state.effects, speeds: items.map((it) => it.speed ?? 1) };
@@ -92,6 +92,8 @@ export function JoinView({ state, setState, onQueued }: { state: JoinState; setS
   return (
     <div className="narrow" onDragOver={(e) => { e.preventDefault(); setOver(true); }} onDragLeave={() => setOver(false)} onDrop={onDrop}>
       <h1>{t('join.title')}</h1>
+      {pending > 0 && <p className="banner" role="status">{t('join.waiting', { n: String(pending) })}</p>}
+      {failed > 0 && <p className="error" role="alert">{t('join.someFailed', { n: String(failed) })}</p>}
       {items.length === 0 ? (
         <div className={`drop ${over ? 'over' : ''}`}>
           <p>{t('join.drop')}</p>

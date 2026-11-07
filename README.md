@@ -6,7 +6,7 @@ Status: version 0.3. See the [specification](docs/SPEC.md) and the [changelog](C
 
 ## Using the app
 
-1. Download the exe from the [download page](https://kilemann.github.io/Snuttefanger.io/) or from [Releases](https://github.com/kilemann/Snuttefanger.io/releases).
+1. Download the installer from the [download page](https://kilemann.github.io/Snuttefanger.io/) or from [Releases](https://github.com/kilemann/Snuttefanger.io/releases). It installs for your user without administrator rights. A ZIP version that runs without installing is also available.
 2. Start it. Windows SmartScreen may warn you because the app is not code-signed. Choose More info, then Run anyway.
 3. Go to **Settings** and choose **Install missing tools**. The app downloads yt-dlp, FFmpeg and Deno and verifies their checksums.
 
@@ -22,9 +22,9 @@ npm run test:integration
 npm run dist
 ```
 
-The integration test downloads the real tools, about 400 MB. `npm run dist` builds the portable exe in `release/` and must run on Windows.
+The integration test downloads the real tools, about 400 MB. `npm run dist` builds the installer and the ZIP version in `release/` and must run on Windows.
 
-When `version` in `package.json` is raised and pushed to `main`, GitHub Actions builds the exe, tests the packaged app on Windows and creates the release. The download page always links to the exe in the latest release.
+When `version` in `package.json` is raised and pushed to `main`, GitHub Actions builds the installer and the ZIP version, tests the packaged and the installed app on Windows and creates the release. The download page always links to the exe in the latest release.
 
 ## Copyright
 

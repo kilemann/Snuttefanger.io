@@ -94,14 +94,18 @@ label.field { display: flex; flex-direction: column; gap: 4px; font-size: 13px; 
 .tool code { font-size: 12px; color: var(--muted); overflow-wrap: anywhere; }
 kbd { background: var(--raised); border: 1px solid var(--line); border-radius: 4px; padding: 0 5px; font: inherit; font-size: 12px; }
 
-.clips { display: grid; grid-template-columns: auto auto 124px 124px auto auto; gap: 6px 10px; align-items: center; justify-content: start; margin-bottom: 14px; }
+.clips { display: grid; grid-template-columns: auto auto 120px 120px auto auto; gap: 6px 8px; align-items: center; justify-content: start; margin-bottom: 14px; }
 .clip-row { display: contents; }
-.clip-name { display: flex; align-items: center; gap: 7px; padding-right: 8px; cursor: pointer; white-space: nowrap; }
+.clip-name { display: flex; align-items: center; gap: 7px; padding-right: 4px; white-space: nowrap; }
+.clips input.clip-title { width: 120px; }
+.clips .btn { padding-inline: 10px; }
+.clips select { padding-inline: 6px; }
+.clip-row.active input.clip-title { border-color: var(--amber); }
 .clip-name input { accent-color: var(--amber); margin: 0; }
 .clip-row.active .clip-name { color: var(--amber); font-weight: 600; }
 .clips { overflow-x: auto; padding-bottom: 2px; }
 .clips select { min-width: max-content; }
-.clips input[type=text] { width: 128px; font-variant-numeric: tabular-nums; }
+.clips input[type=text] { width: 120px; padding-inline: 8px; font-variant-numeric: tabular-nums; }
 .clips-head { font-size: 13px; color: var(--muted); }
 
 dialog.info-dialog { background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 10px; padding: 0; width: min(640px, calc(100vw - 32px)); max-height: 84vh; }

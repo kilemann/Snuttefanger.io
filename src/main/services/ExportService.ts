@@ -116,9 +116,16 @@ function stamp(seconds: number): string {
   return `${pad(Math.floor(s / 3600))}.${pad(Math.floor(s / 60) % 60)}.${pad(s % 60)}`;
 }
 
-export function cutOutputPath(input: string, start: number, end: number, exportDir: string, ext = extname(input), word = 'clip'): string {
+/** Gjør et klippnavn trygt som filnavn i Windows: ingen ulovlige tegn, ingen reserverte navn, maks 120 tegn. */
+export function safeFileName(name: string): string {
+  const cleaned = name.replace(/[<>:"/\\|?*\u0000-\u001f]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 120).replace(/[. ]+$/, '');
+  if (!cleaned) return '';
+  return /^(con|prn|aux|nul|com\d|lpt\d)$/i.test(cleaned) ? `${cleaned}_` : cleaned;
+}
+
+export function cutOutputPath(input: string, start: number, end: number, exportDir: string, ext = extname(input), word = 'clip', name = ''): string {
   const dir = exportDir || dirname(input);
-  const base = `${basename(input, extname(input))} (${word} ${stamp(start)}-${stamp(end)})`;
+  const base = safeFileName(name) || `${basename(input, extname(input))} (${word} ${stamp(start)}-${stamp(end)})`;
   let candidate = join(dir, base + ext);
   for (let n = 2; existsSync(candidate); n++) candidate = join(dir, `${base} ${n}${ext}`);
   return candidate;
@@ -143,7 +150,7 @@ export class CutRunner implements JobRunner<CutRequest> {
     const done = (async () => {
       const source = await probeMedia(this.deps.ffprobe(), req.input);
       if (stopRequested) throw new Error(msg('err.stopped'));
-      output = cutOutputPath(req.input, req.startSeconds, req.endSeconds, this.deps.exportDir(), outputExtension(source, mode, req.audioFormat), translate(this.deps.language?.() ?? 'en', mode === 'audio' ? 'file.audioClip' : 'file.clip'));
+      output = cutOutputPath(req.input, req.startSeconds, req.endSeconds, this.deps.exportDir(), outputExtension(source, mode, req.audioFormat), translate(this.deps.language?.() ?? 'en', mode === 'audio' ? 'file.audioClip' : 'file.clip'), req.name ?? '');
       await mkdir(dirname(output), { recursive: true });
       const options = cutOptions(source, mode, req.audioFormat);
       const coverAfter = mode === 'audio' ? options.cover : undefined;

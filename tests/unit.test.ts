@@ -8,6 +8,8 @@ import { JobQueue, type JobHandle } from '../src/main/services/JobQueue';
 import { parseProbe } from '../src/main/services/MediaProbeService';
 import { sanitizeSettings } from '../src/main/services/SettingsService';
 import type { DownloadRequest, Job, Settings } from '../src/shared/types';
+import { compareVersions, ytDlpAgeDays } from '../src/shared/versions';
+import { cutOutputPath, safeFileName } from '../src/main/services/ExportService';
 import { buildJoinArgs, buildJoinGraph, concatList, hasEffects, joinPlan, outputLength, parseSilence, sanitizeEffects } from '../src/main/services/JoinService';
 import { PeakCollector } from '../src/main/services/WaveformService';
 import { snapToQuiet } from '../src/shared/waveform';
@@ -124,7 +126,7 @@ test('ffprobe-data tolkes, og omslagsbilde regnes ikke som video', () => {
 });
 
 test('ugyldige innstillinger faller tilbake til standard', () => {
-  const d = { downloadDir: '/d', exportDir: '', quality: 'best', container: 'mp4', audioFormat: 'mp3', maxDownloads: 3, embedThumbnail: true, ytDlpPath: '', ffmpegPath: '', ffprobePath: '', denoPath: '', language: 'en' } as Settings;
+  const d = { downloadDir: '/d', exportDir: '', quality: 'best', container: 'mp4', audioFormat: 'mp3', maxDownloads: 3, embedThumbnail: true, ytDlpPath: '', ffmpegPath: '', ffprobePath: '', denoPath: '', language: 'en', checkUpdates: true, dismissedVersion: '' } as Settings;
   const s = sanitizeSettings({ quality: 123 as never, maxDownloads: 99, audioFormat: 'flac' }, d);
   assert.equal(s.quality, 'best'); assert.equal(s.maxDownloads, 3); assert.equal(s.audioFormat, 'flac');
 });
@@ -212,7 +214,7 @@ test('meldinger fra hovedprosessen oversettes når de vises, også nestede', () 
 });
 
 test('språkinnstillingen godtar bare norsk og engelsk', () => {
-  const d = { downloadDir: '/d', exportDir: '', quality: 'best', container: 'mp4', audioFormat: 'mp3', maxDownloads: 3, embedThumbnail: true, ytDlpPath: '', ffmpegPath: '', ffprobePath: '', denoPath: '', language: 'nb' } as Settings;
+  const d = { downloadDir: '/d', exportDir: '', quality: 'best', container: 'mp4', audioFormat: 'mp3', maxDownloads: 3, embedThumbnail: true, ytDlpPath: '', ffmpegPath: '', ffprobePath: '', denoPath: '', language: 'nb', checkUpdates: true, dismissedVersion: '' } as Settings;
   assert.equal(sanitizeSettings({ language: 'en' }, d).language, 'en');
   assert.equal(sanitizeSettings({ language: 'de' as never }, d).language, 'nb');
 });
@@ -329,4 +331,29 @@ test('bølgeform: topper per 10 ms, også når sampler deles mellom bitene', () 
   assert.equal(snapToQuiet(wave, 0.04, 0.03), 0.03, 'nærmeste av to like stille punkter');
   assert.equal(snapToQuiet(wave, 0.07, 0.01), 0.07);
   assert.equal(snapToQuiet({ peaksPerSecond: 100, peaks: new Uint8Array(), maxPeak: 0 }, 1.23), 1.23);
+});
+
+test('versjoner: nyere versjon oppdages, og yt-dlp-alder leses fra versjonsnummeret', () => {
+  assert.ok(compareVersions('0.7.0', '0.6.1') > 0);
+  assert.ok(compareVersions('v0.10.0', '0.9.9') > 0, 'tallene sammenlignes som tall, ikke tekst');
+  assert.equal(compareVersions('v0.7.0', '0.7.0'), 0);
+  assert.ok(compareVersions('0.6.1', '0.7.0') < 0);
+  assert.equal(ytDlpAgeDays('2026.10.26', new Date(Date.UTC(2026, 10, 7))), 12);
+  assert.equal(ytDlpAgeDays('2026.10.26.232912', new Date(Date.UTC(2026, 11, 26))), 61);
+  assert.equal(ytDlpAgeDays('nightly', new Date()), null);
+  assert.equal(ytDlpAgeDays(null), null);
+});
+
+test('klippnavn blir trygge filnavn i Windows', () => {
+  assert.equal(safeFileName('  Refreng: "Bonfire" / drop?  '), 'Refreng Bonfire drop');
+  assert.equal(safeFileName('slutt...'), 'slutt');
+  assert.equal(safeFileName('CON'), 'CON_');
+  assert.equal(safeFileName('a\u0007b'), 'a b');
+  assert.equal(safeFileName('   '), '');
+  assert.equal(safeFileName('x'.repeat(300)).length, 120);
+  assert.ok(cutOutputPath('/m/video.mp4', 1, 2, '/ut', '.mp3', 'clip', 'Mitt beste klipp').endsWith('Mitt beste klipp.mp3'));
+  assert.ok(cutOutputPath('/m/video.mp4', 1, 2, '/ut', '.mp3', 'clip', '').endsWith('video (clip 00.00.01-00.00.02).mp3'));
+  const d = { downloadDir: '/d', exportDir: '', quality: 'best', container: 'mp4', audioFormat: 'mp3', maxDownloads: 3, embedThumbnail: true, ytDlpPath: '', ffmpegPath: '', ffprobePath: '', denoPath: '', language: 'nb', checkUpdates: true, dismissedVersion: '' } as Settings;
+  assert.equal(sanitizeSettings({ checkUpdates: false, dismissedVersion: '0.7.1' }, d).checkUpdates, false);
+  assert.equal(sanitizeSettings({ checkUpdates: 'nei' as never }, d).checkUpdates, true);
 });

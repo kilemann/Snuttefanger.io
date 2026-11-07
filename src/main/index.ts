@@ -7,11 +7,12 @@ import { languageFromLocale, msg, translate } from '../shared/i18n';
 import { mediaSrc, registerMediaHandler, registerSchemePrivileges } from './protocol';
 import { BinaryManager } from './services/BinaryManager';
 import { DownloadRunner, assertHttpUrl, fetchUrlInfo, type DownloaderDeps } from './services/DownloaderService';
-import { CutRunner, MAX_CLIPS, isAudioTarget, outputExtension, validateCut } from './services/ExportService';
+import { CutRunner, MAX_CLIPS, isAudioTarget, outputExtension, safeFileName, validateCut } from './services/ExportService';
 import { JobQueue } from './services/JobQueue';
 import { JoinRunner, MAX_JOIN, joinPlan, renderJoin, sanitizeEffects, type JoinDeps, type RenderControl } from './services/JoinService';
 import { ProjectStore } from './services/ProjectStore';
 import { getWaveform } from './services/WaveformService';
+import { DOWNLOAD_PAGE, checkForUpdate } from './services/UpdateService';
 import { probeMedia } from './services/MediaProbeService';
 import { stopAllProcesses } from './services/ProcessManager';
 import { SettingsService } from './services/SettingsService';
@@ -45,7 +46,7 @@ app.whenReady().then(() => {
   const settings = new SettingsService(data, {
     downloadDir: join(app.getPath('videos'), 'Snuttefanger'), exportDir: '', quality: 'best', container: 'mp4', audioFormat: 'mp3',
     maxDownloads: 3, embedThumbnail: true, ytDlpPath: '', ffmpegPath: '', ffprobePath: '', denoPath: '',
-    language: languageFromLocale(app.getLocale()),
+    language: languageFromLocale(app.getLocale()), checkUpdates: true, dismissedVersion: '',
   });
   const binaries = new BinaryManager(join(data, 'bin'), () => settings.get(), (s: InstallState) => send('install', s));
   const queue = new JobQueue((jobs: Job[]) => send('jobs', jobs));
@@ -161,13 +162,17 @@ app.whenReady().then(() => {
         outputExtension(info, c.mode, c.audioFormat);
       } catch (e) { throw new Error(msg('err.clipN', { n: i + 1, inner: (e as Error).message })); }
     });
-    clips.forEach((c, i) => {
-      const base = clips.length > 1 ? msg('job.clipOf', { i: i + 1, n: clips.length, name: info.fileName }) : msg('job.clip', { name: info.fileName });
+    return clips.map((c, i) => {
+      const name = typeof c.name === 'string' ? safeFileName(c.name) : '';
+      const base = name || (clips.length > 1 ? msg('job.clipOf', { i: i + 1, n: clips.length, name: info.fileName }) : msg('job.clip', { name: info.fileName }));
       const fmt = c.audioFormat === 'original' ? msg('fmt.original') : c.audioFormat.toUpperCase();
       const title = c.mode === 'audio' ? msg('job.audio', { title: base, fmt }) : base;
-      queue.enqueue('export', title, { input: batch.input, startSeconds: c.startSeconds, endSeconds: c.endSeconds, mode: c.mode, audioFormat: c.audioFormat } satisfies CutRequest);
+      return queue.enqueue('export', title, { input: batch.input, startSeconds: c.startSeconds, endSeconds: c.endSeconds, mode: c.mode, audioFormat: c.audioFormat, name } satisfies CutRequest);
     });
   });
+  ipcMain.handle('update:check', () => checkForUpdate(app.getVersion()));
+  // Bare nedlastingssiden kan åpnes herfra, aldri en adresse fra GUI-et.
+  ipcMain.handle('update:open', () => shell.openExternal(DOWNLOAD_PAGE));
   ipcMain.handle('jobs:get', () => queue.list());
   ipcMain.handle('job:pause', (_e, id: string) => queue.pause(id));
   ipcMain.handle('job:resume', (_e, id: string) => queue.resume(id));

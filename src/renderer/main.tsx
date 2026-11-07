@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import type { TextKey } from '../shared/i18n';
-import type { Job, OpenedMedia, Settings, SnuttApi } from '../shared/types';
+import type { Job, OpenedMedia, Settings, SnuttApi, UpdateInfo } from '../shared/types';
+import { ytDlpAgeDays } from '../shared/versions';
 import { setLanguage, t, tm } from './i18n';
 import { DownloadView } from './views/DownloadView';
 import { EditorView } from './views/EditorView';
@@ -13,6 +14,8 @@ import { SettingsView } from './views/SettingsView';
 
 declare global { interface Window { snutt: SnuttApi; } }
 const api = window.snutt;
+/** yt-dlp eldre enn dette gir en påminnelse. YouTube endrer seg ofte. */
+const YTDLP_MAX_AGE = 30;
 
 export type View = 'download' | 'editor' | 'join' | 'queue' | 'settings';
 const NAV: { id: View; label: TextKey }[] = [
@@ -40,17 +43,50 @@ function App() {
     );
   };
 
+  const [update, setUpdate] = useState<UpdateInfo | null>(null);
+  const [ytDlpAge, setYtDlpAge] = useState<number | null>(null);
+  const [ytDlpBusy, setYtDlpBusy] = useState(false);
+  // Klipp som er sendt til Skjøt, i klippenes rekkefølge. De legges til når jobbene er ferdige.
+  const [pendingJoin, setPendingJoin] = useState<string[]>([]);
+  const [joinFailed, setJoinFailed] = useState(0);
+
   const refreshTools = async () => {
     const tools = await api.getTools();
     setToolsMissing(tools.some((tool) => tool.name !== 'deno' && !tool.version));
+    const yt = tools.find((tool) => tool.name === 'ytDlp');
+    setYtDlpAge(yt && yt.source !== 'custom' ? ytDlpAgeDays(yt.version) : null);
   };
 
   useEffect(() => {
-    void api.getSettings().then(setSettings);
+    void api.getSettings().then((s) => {
+      setSettings(s);
+      if (s.checkUpdates) void api.checkUpdate().then(setUpdate);
+    });
     void api.getJobs().then(setJobs);
     void refreshTools();
     return api.onJobs(setJobs);
   }, []);
+
+  useEffect(() => {
+    if (pendingJoin.length === 0) return;
+    const mine = pendingJoin.map((id) => jobs.find((j) => j.id === id));
+    if (mine.some((j) => !j || ['queued', 'running', 'paused'].includes(j.status))) return;
+    const done = mine.filter((j) => j?.status === 'done' && j.outputPath);
+    for (const j of done) addToJoin(j!.outputPath!);
+    setJoinFailed(mine.length - done.length);
+    setPendingJoin([]);
+  }, [jobs, pendingJoin]);
+
+  const sendToJoin = (ids: string[]) => {
+    setJoinFailed(0);
+    setPendingJoin(ids);
+    setView('join');
+  };
+  const updateYtDlp = async () => {
+    setYtDlpBusy(true);
+    try { await api.updateYtDlp(); } catch { /* feilen vises under Innstillinger */ }
+    finally { setYtDlpBusy(false); void refreshTools(); }
+  };
 
   const openMedia = async (path: string) => {
     setView('editor');
@@ -78,6 +114,20 @@ function App() {
         ))}
       </nav>
       <main className="main">
+        {update?.newer && settings.checkUpdates && update.latest !== settings.dismissedVersion && (
+          <div className="banner row" role="status">
+            <div className="grow">{t('upd.new', { v: `v${update.latest}`, cur: `v${api.version}` })}</div>
+            <button className="btn primary" onClick={() => api.openDownloadPage()}>{t('upd.download')}</button>
+            <button className="btn" onClick={async () => setSettings(await api.saveSettings({ dismissedVersion: update.latest }))}>{t('upd.later')}</button>
+          </div>
+        )}
+        {!toolsMissing && ytDlpAge !== null && ytDlpAge > YTDLP_MAX_AGE && view === 'download' && (
+          <div className="banner row" role="status">
+            <div className="grow">{t('upd.ytdlpOld', { d: String(ytDlpAge) })}</div>
+            <button className="btn primary" disabled={ytDlpBusy} onClick={updateYtDlp}>{ytDlpBusy ? t('upd.updating') : t('set.update')}</button>
+            <button className="btn" onClick={() => setYtDlpAge(null)}>{t('upd.later')}</button>
+          </div>
+        )}
         {toolsMissing && view !== 'settings' && (
           <div className="banner row">
             <div className="grow">{t('app.toolsBanner')}</div>
@@ -85,8 +135,8 @@ function App() {
           </div>
         )}
         {view === 'download' && <DownloadView settings={settings} onQueued={() => setView('queue')} />}
-        {view === 'editor' && <EditorView media={media} error={mediaError} onOpen={openMedia} onQueued={() => setView('queue')} />}
-        {view === 'join' && <JoinView state={joinState} setState={setJoinState} onQueued={() => setView('queue')} />}
+        {view === 'editor' && <EditorView media={media} error={mediaError} onOpen={openMedia} onQueued={() => setView('queue')} onSendToJoin={sendToJoin} />}
+        {view === 'join' && <JoinView state={joinState} setState={setJoinState} onQueued={() => setView('queue')} pending={pendingJoin.length} failed={joinFailed} />}
         {view === 'queue' && <QueueView jobs={jobs} onOpen={openMedia} onAddToJoin={addToJoin} joinPaths={joinItems.map((it) => it.path)} />}
         {view === 'settings' && <SettingsView settings={settings} onChange={setSettings} onToolsChanged={refreshTools} />}
       </main>

@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Snuttefanger</title>
+<link rel="icon" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA1MTIgNTEyIj48Y2lyY2xlIGN4PSIyNTYiIGN5PSIyNTYiIHI9IjI0OCIgZmlsbD0iI2YwYzA0MCIvPjxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDEwOCAxMDgpIHNjYWxlKDkuMjUpIiBmaWxsPSJub25lIiBzdHJva2U9IiMxZjRmYTMiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCI+CiAgICAgICAgICA8cmVjdCB4PSIxIiB5PSIzIiB3aWR0aD0iMTkuNSIgaGVpZ2h0PSIxMCIgcng9IjEuMiIgZmlsbD0iIzFmNGZhMyIgc3Ryb2tlPSJub25lIi8+CiAgICAgICAgICA8cGF0aCBkPSJNMyA1LjJoMk03LjIgNS4yaDJNMTEuNCA1LjJoMk0xNS42IDUuMmgyTTMgMTAuOGgyTTcuMiAxMC44aDJNMTEuNCAxMC44aDJNMTUuNiAxMC44aDIiIHN0cm9rZT0iI2YwYzA0MCIgc3Ryb2tlLXdpZHRoPSIxLjQiIHN0cm9rZS1saW5lY2FwPSJidXR0Ii8+CiAgICAgICAgICA8cmVjdCB4PSIxLjUiIHk9IjE2LjUiIHdpZHRoPSIxNyIgaGVpZ2h0PSIxMi41IiByeD0iMS44IiBzdHJva2Utd2lkdGg9IjIiLz4KICAgICAgICAgIDxyZWN0IHg9IjQuNSIgeT0iMTkuMiIgd2lkdGg9IjExIiBoZWlnaHQ9IjQuNCIgcng9IjEiIHN0cm9rZS13aWR0aD0iMS41Ii8+CiAgICAgICAgICA8Y2lyY2xlIGN4PSI3LjYiIGN5PSIyMS40IiByPSIxLjIiIGZpbGw9IiMxZjRmYTMiIHN0cm9rZT0ibm9uZSIvPgogICAgICAgICAgPGNpcmNsZSBjeD0iMTIuNCIgY3k9IjIxLjQiIHI9IjEuMiIgZmlsbD0iIzFmNGZhMyIgc3Ryb2tlPSJub25lIi8+CiAgICAgICAgICA8cGF0aCBkPSJNNS40IDI5bDEuMS0yLjVoN2wxLjEgMi41IiBzdHJva2Utd2lkdGg9IjEuNSIvPgogICAgICAgICAgPHBhdGggZD0iTTIxLjQgMi41bDYgMTguNk0yOC4yIDIuNWwtNiAxOC42IiBzdHJva2Utd2lkdGg9IjIuMiIvPgogICAgICAgICAgPGNpcmNsZSBjeD0iMjEuNiIgY3k9IjI0LjYiIHI9IjIuOCIgc3Ryb2tlLXdpZHRoPSIyIi8+CiAgICAgICAgICA8Y2lyY2xlIGN4PSIyOCIgY3k9IjI0LjYiIHI9IjIuOCIgc3Ryb2tlLXdpZHRoPSIyIi8+CiAgICAgICAgPC9nPjwvc3ZnPg==">
 <meta name="theme-color" content="#1c1a26">
 <style>
 :root { color-scheme: dark; --ink: #1c1a26; --panel: #262433; --line: #474359; --text: #f0edf5; --muted: #b2adc4; --amber: #f2a93b; --amber-ink: #2a1c05; }
@@ -41,7 +42,7 @@ html[data-lang="en"] [lang="nb"], html[data-lang="nb"] [lang="en"]:not(html) { d
 </head>
 <body><main>
 <header class="brand-row">
-  <h1 class="brand">Snuttefanger</h1><span class="ver" id="ver">v0.6.1</span>
+  <h1 class="brand">Snuttefanger</h1><span class="ver" id="ver">v0.7.0</span>
   <button class="infobtn" id="infobtn" aria-label="About and help / Om appen og hjelp" title="About and help / Om appen og hjelp">i</button>
   <button class="lang" id="langbtn"><span lang="en">Norsk</span><span lang="nb">English</span></button>
 </header>
@@ -49,7 +50,8 @@ html[data-lang="en"] [lang="nb"], html[data-lang="nb"] [lang="en"]:not(html) { d
 <div class="strip" role="img" aria-label="Film strip with a marked clip"></div>
 <p><a class="cta" id="download" href="https://github.com/kilemann/Snuttefanger.io/releases"><span lang="en">Download for Windows</span><span lang="nb">Last ned for Windows</span></a></p>
 <p class="muted small" id="dlnote"><span lang="en">Getting the latest version.</span><span lang="nb">Henter siste versjon.</span></p>
-<p class="muted"><span lang="en">The program requires 64-bit Windows 10 or 11. Nothing is installed: you start the exe directly. On first start it gets yt-dlp, FFmpeg and Deno itself. It can be used in English or Norwegian.</span><span lang="nb">Programmet krever Windows 10 eller 11, 64-bit. Det installeres ikke: du starter exe-filen direkte. Ved første oppstart henter det selv yt-dlp, FFmpeg og Deno. Det kan brukes på norsk eller engelsk.</span></p>
+<p class="muted small" id="zipnote" hidden></p>
+<p class="muted"><span lang="en">The program requires 64-bit Windows 10 or 11. The installer puts it in your own user folder and needs no administrator rights. The ZIP version runs without installing. On first start it gets yt-dlp, FFmpeg and Deno itself. It can be used in English or Norwegian.</span><span lang="nb">Programmet krever Windows 10 eller 11, 64-bit. Installasjonsprogrammet legger det i din egen brukermappe og trenger ikke administratorrettigheter. ZIP-versjonen kjører uten installasjon. Ved første oppstart henter det selv yt-dlp, FFmpeg og Deno. Det kan brukes på norsk eller engelsk.</span></p>
 <p class="muted"><span lang="en">Only download content you have the right to use.</span><span lang="nb">Last bare ned innhold du har rett til å bruke.</span></p>
 <p><a href="https://github.com/kilemann/Snuttefanger.io"><span lang="en">Source code and documentation</span><span lang="nb">Kildekode og dokumentasjon</span></a></p>
 </main>
@@ -60,7 +62,7 @@ html[data-lang="en"] [lang="nb"], html[data-lang="nb"] [lang="en"]:not(html) { d
     <p>Snuttefanger is a Windows program that downloads video and audio with yt-dlp, and cuts files without losing quality with FFmpeg.</p>
     <h4>Getting started</h4>
     <ol>
-      <li>Download the exe and start it.</li>
+      <li>Download the installer and start it. Snuttefanger is installed for your user and gets a shortcut on the desktop and in the Start menu.</li>
       <li>Windows may warn you because the program is not code-signed. Choose More info, then Run anyway.</li>
       <li>Go to Settings and choose Install missing tools.</li>
     </ol>
@@ -73,6 +75,7 @@ html[data-lang="en"] [lang="nb"], html[data-lang="nb"] [lang="en"]:not(html) { d
     </ul>
     <h4>Versions</h4>
     <div class="versions">
+      <b>v0.7.0</b><span>Installer and faster start, update notice, new icon, clip names, undo and redo, and Export and add to Join.</span>
       <b>v0.6.1</b><span>Speed in Join is chosen for each file.</span>
       <b>v0.6.0</b><span>Waveform with zoom and snap to silence. Clips are remembered. Join effects, title and artist, and listening before export. Smaller FFmpeg.</span>
       <b>v0.5.0</b><span>New Join menu: join audio files into one, without re-encoding when the formats match.</span>
@@ -86,7 +89,7 @@ html[data-lang="en"] [lang="nb"], html[data-lang="nb"] [lang="en"]:not(html) { d
     <p>Snuttefanger er et Windows-program som laster ned video og lyd med yt-dlp, og klipper filer uten kvalitetstap med FFmpeg.</p>
     <h4>Slik kommer du i gang</h4>
     <ol>
-      <li>Last ned exe-filen og start den.</li>
+      <li>Last ned installasjonsprogrammet og start det. Snuttefanger installeres for din bruker og får snarvei på skrivebordet og i Start-menyen.</li>
       <li>Windows kan advare fordi programmet ikke er kodesignert. Velg Mer info og deretter Kjør likevel.</li>
       <li>Gå til Innstillinger og velg Installer det som mangler.</li>
     </ol>
@@ -99,6 +102,7 @@ html[data-lang="en"] [lang="nb"], html[data-lang="nb"] [lang="en"]:not(html) { d
     </ul>
     <h4>Versjoner</h4>
     <div class="versions">
+      <b>v0.7.0</b><span>Installasjonsprogram og raskere oppstart, varsel om ny versjon, nytt ikon, navn på klipp, angre og gjør om, og Eksporter og legg i Skjøt.</span>
       <b>v0.6.1</b><span>Hastighet i Skjøt velges for hver fil.</span>
       <b>v0.6.0</b><span>Bølgeform med zoom og fest til stillhet. Klippene huskes. Effekter, tittel og artist, og lytting før eksport i Skjøt. Mindre FFmpeg.</span>
       <b>v0.5.0</b><span>Ny Skjøt-meny: skjøt lydfiler til én fil, uten omkoding når formatene er like.</span>
@@ -123,14 +127,22 @@ document.getElementById('infobtn').onclick = () => info.showModal();
 document.getElementById('infoclose').onclick = () => info.close();
 info.addEventListener('click', (e) => { if (e.target === info) info.close(); });
 
-// Lenken peker rett på exe-filen i siste release, så du alltid får versjonen som faktisk er bygd.
+// Lenkene peker rett på filene i siste release, så du alltid får versjonen som faktisk er bygd.
 let release = null, failed = false;
 function render() {
-  const a = document.getElementById('download'), note = document.getElementById('dlnote');
+  const a = document.getElementById('download'), note = document.getElementById('dlnote'), zip = document.getElementById('zipnote');
   if (release) {
-    a.href = release.url;
+    a.href = release.setup.url;
     a.textContent = lang === 'nb' ? `Last ned v${release.v} for Windows` : `Download v${release.v} for Windows`;
-    note.textContent = `${release.name}, ${release.mb} MB.`;
+    note.textContent = lang === 'nb' ? `Installasjonsprogram, ${release.setup.mb} MB.` : `Installer, ${release.setup.mb} MB.`;
+    if (release.zip) {
+      zip.hidden = false;
+      zip.replaceChildren(lang === 'nb' ? 'Eller ' : 'Or ');
+      const l = document.createElement('a');
+      l.href = release.zip.url;
+      l.textContent = lang === 'nb' ? `ZIP-versjonen uten installasjon (${release.zip.mb} MB)` : `the ZIP version without installing (${release.zip.mb} MB)`;
+      zip.append(l, '.');
+    }
   } else if (failed) {
     note.textContent = lang === 'nb'
       ? 'Fant ikke siste versjon automatisk. Knappen åpner listen over versjoner på GitHub.'
@@ -143,9 +155,14 @@ setLang(lang);
     const r = await fetch('https://api.github.com/repos/kilemann/Snuttefanger.io/releases/latest', { headers: { Accept: 'application/vnd.github+json' } });
     if (!r.ok) throw new Error(String(r.status));
     const rel = await r.json();
-    const exe = (rel.assets || []).find((x) => /-portable\.exe$/.test(x.name));
-    if (!exe || !/^https:\/\/github\.com\//.test(exe.browser_download_url)) throw new Error('no exe');
-    release = { url: exe.browser_download_url, v: String(rel.tag_name).replace(/^v/, ''), name: exe.name, mb: Math.round(exe.size / 1048576) };
+    const file = (re) => {
+      const x = (rel.assets || []).find((y) => re.test(y.name) && /^https:\/\/github\.com\//.test(y.browser_download_url));
+      return x ? { url: x.browser_download_url, name: x.name, mb: Math.round(x.size / 1048576) } : null;
+    };
+    // Eldre versjoner hadde bare en portabel exe-fil.
+    const setup = file(/-Setup-[\d.]+\.exe$/) || file(/-portable\.exe$/);
+    if (!setup) throw new Error('no exe');
+    release = { v: String(rel.tag_name).replace(/^v/, ''), setup, zip: file(/-win\.zip$/) };
   } catch { failed = true; }
   render();
 })();

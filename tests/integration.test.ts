@@ -13,6 +13,7 @@ import { JobQueue } from '../src/main/services/JobQueue';
 import { JoinRunner } from '../src/main/services/JoinService';
 import { ProjectStore } from '../src/main/services/ProjectStore';
 import { getWaveform } from '../src/main/services/WaveformService';
+import { checkForUpdate } from '../src/main/services/UpdateService';
 import { NO_EFFECTS } from '../src/shared/types';
 import { probeMedia } from '../src/main/services/MediaProbeService';
 import { runProcess } from '../src/main/services/ProcessManager';
@@ -237,6 +238,16 @@ test('bølgeform og lagrede klipp', async () => {
   const again = new ProjectStore(join(root, 'prosjekt'));
   assert.deepEqual((await again.load(bigFile))?.clips[0], { start: 1, end: 2, mode: 'audio', fmt: 'mp3' });
   assert.equal(await again.load(join(root, 'finnes-ikke.mp4')), null);
+});
+
+test('oppdateringssjekk mot en lokal server, og stille feil uten svar', async () => {
+  const srv = createServer((_q, r) => { r.writeHead(200, { 'Content-Type': 'application/json' }); r.end(JSON.stringify({ tag_name: 'v9.1.0', html_url: 'x' })); });
+  await new Promise<void>((r) => srv.listen(0, '127.0.0.1', r));
+  const url = `http://127.0.0.1:${(srv.address() as { port: number }).port}/latest`;
+  assert.deepEqual(await checkForUpdate('0.7.0', url), { latest: '9.1.0', newer: true });
+  assert.deepEqual(await checkForUpdate('9.1.0', url), { latest: '9.1.0', newer: false });
+  srv.close(); srv.closeAllConnections();
+  assert.equal(await checkForUpdate('0.7.0', 'http://127.0.0.1:9/finnes-ikke'), null);
 });
 
 function deps(tempRoot: string): DownloaderDeps {

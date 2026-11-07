@@ -1,7 +1,7 @@
 {
   "name": "snuttefanger",
   "productName": "Snuttefanger",
-  "version": "0.6.1",
+  "version": "0.7.0",
   "description": "Download video and audio, and cut clips without losing quality.",
   "author": "kilemann",
   "license": "MIT",
@@ -13,7 +13,7 @@
     "start": "npm run build && electron .",
     "test": "node scripts/build.mjs && node --test dist/tests/unit.test.js",
     "test:integration": "node scripts/build.mjs && node --test dist/tests/integration.test.js",
-    "dist": "npm run build && electron-builder --win portable"
+    "dist": "npm run build && electron-builder --win"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",

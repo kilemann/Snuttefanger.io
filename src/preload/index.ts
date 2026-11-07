@@ -26,5 +26,6 @@ const api: SnuttApi = {
   cancelJob: call('job:cancel'), retryJob: call('job:retry'), removeJob: call('job:remove'),
   showInFolder: call('shell:show'),
   onJobs: (l) => listen('jobs', l), onInstall: (l) => listen('install', l), onPreview: (l) => listen('preview', l),
+  checkUpdate: call('update:check'), openDownloadPage: call('update:open'),
 };
 contextBridge.exposeInMainWorld('snutt', api);

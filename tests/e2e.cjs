@@ -12,13 +12,17 @@ const assert = require('node:assert/strict');
   const root = mkdtempSync(join(tmpdir(), 'snutt-e2e-'));
   const file = join(root, 'Prøvefilm æøå.mp4');
   execFileSync(join(binDir, 'ffmpeg'), ['-hide_banner', '-loglevel', 'error', '-f', 'lavfi', '-i', 'testsrc2=size=1280x720:rate=25', '-f', 'lavfi', '-i', "sine=frequency=330,volume='if(lt(mod(t,4),2.5),1,0.01)':eval=frame", '-t', '20', '-c:v', 'libx264', '-g', '50', '-pix_fmt', 'yuv420p', '-c:a', 'aac', file]);
-  const server = createServer((_q, r) => { r.writeHead(200, { 'Content-Type': 'video/mp4', 'Content-Length': statSync(file).size }); createReadStream(file).pipe(r); });
+  // Samme server svarer på oppdateringssjekken med en nyere versjon, og leverer ellers testvideoen.
+  const server = createServer((q, r) => {
+    if (q.url === '/latest') { r.writeHead(200, { 'Content-Type': 'application/json' }); r.end('{"tag_name":"v9.9.9"}'); return; }
+    r.writeHead(200, { 'Content-Type': 'video/mp4', 'Content-Length': statSync(file).size }); createReadStream(file).pipe(r);
+  });
   await new Promise((r) => server.listen(0, '127.0.0.1', r));
   const url = `http://127.0.0.1:${server.address().port}/snutt.mp4`;
 
   const app = await _electron.launch({
     executablePath: electron, args: ['.', '--no-sandbox'],
-    env: { ...process.env, SNUTT_USER_DATA: join(root, 'data'), PATH: `${binDir}:${process.env.PATH}` },
+    env: { ...process.env, SNUTT_USER_DATA: join(root, 'data'), PATH: `${binDir}:${process.env.PATH}`, SNUTT_UPDATE_URL: `http://127.0.0.1:${server.address().port}/latest` },
   });
   const page = await app.firstWindow();
   const errors = [];
@@ -26,6 +30,11 @@ const assert = require('node:assert/strict');
   page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text() + ' ' + JSON.stringify(m.location())); });
   await page.setViewportSize({ width: 1240, height: 820 });
   await page.getByRole('heading', { name: 'Download' }).waitFor();
+  // Varsel om ny versjon, og Ikke nå huskes
+  await page.getByText('Snuttefanger v9.9.9 is available.').waitFor({ timeout: 15000 });
+  await page.screenshot({ path: join(shots, '0-oppdatering.png') });
+  await page.getByRole('button', { name: 'Not now' }).click();
+  await page.getByText('Snuttefanger v9.9.9 is available.').waitFor({ state: 'detached' });
 
   // Nedlasting via GUI
   await page.getByLabel('Web address').fill(url);
@@ -70,7 +79,18 @@ const assert = require('node:assert/strict');
     await page.getByRole('textbox', { name: `End clip ${n}` }).fill(b);
     await page.getByRole('textbox', { name: `End clip ${n}` }).press('Enter');
   };
+  // Angre og gjør om
   await setClip(1, '00:00:02', '00:00:05');
+  await setClip(1, '00:00:03', '00:00:05');
+  // Feltet oppdateres etter neste tegning, så vi venter på verdien i stedet for å lese den med en gang.
+  const start1Is = (v) => page.waitForFunction((want) => document.querySelector('input[aria-label="Start clip 1"]').value === want, v, { timeout: 5000 });
+  await page.getByRole('button', { name: /Undo/ }).click();
+  await start1Is('00:00:02.000');
+  await page.getByRole('button', { name: /Redo/ }).click();
+  await start1Is('00:00:03.000');
+  await page.locator('h1').first().click();
+  await page.keyboard.press('Control+z');
+  await start1Is('00:00:02.000');
   await setClip(2, '00:00:06', '00:00:09.5');
   await setClip(3, '00:00:12', '00:00:18');
   // Klipp 2 og 3 som bare lyd
@@ -145,6 +165,22 @@ const assert = require('node:assert/strict');
   await page.getByRole('button', { name: 'Cut', exact: true }).click();
   await page.getByRole('button', { name: 'Open another file' }).click();
   await page.getByRole('heading', { name: 'Prøvefilm æøå.mp4' }).waitFor();
+  // Navngitte lydklipp rett til Skjøt, i rekkefølge
+  await page.getByLabel('Number of clips').selectOption('2');
+  await setClip(1, '00:00:01', '00:00:03');
+  await setClip(2, '00:00:05', '00:00:08');
+  await page.getByLabel('Export clip 1').selectOption('audio');
+  await page.getByLabel('Export clip 2').selectOption('audio');
+  await page.getByRole('textbox', { name: 'Name of clip 1' }).fill('Del A: «intro»');
+  await page.getByRole('textbox', { name: 'Name of clip 2' }).fill('Del B');
+  await page.screenshot({ path: join(shots, '13-navn.png') });
+  await page.getByRole('button', { name: 'Export and add to Join' }).click();
+  await page.getByRole('heading', { name: 'Join audio' }).waitFor();
+  await page.waitForFunction(() => [...document.querySelectorAll('.join-name')].some((n) => n.textContent.includes('Del B.m4a')), null, { timeout: 30000 });
+  const names = await page.locator('.join-name > div:first-child').allInnerTexts();
+  assert.deepEqual(names.slice(-2), ['Del A «intro».m4a', 'Del B.m4a'], names.join(' | '));
+  await page.screenshot({ path: join(shots, '14-til-skjot.png') });
+  await page.getByRole('button', { name: 'Cut', exact: true }).click();
   // Tilbake til den første filen: de tre klippene er husket
   await page.getByRole('button', { name: 'Queue' }).click();
   await page.getByRole('button', { name: 'Open in cutter' }).last().click();
@@ -174,6 +210,7 @@ const assert = require('node:assert/strict');
   const saved = JSON.parse(require('node:fs').readFileSync(join(root, 'data', 'settings.json'), 'utf8'));
   assert.equal(saved.maxDownloads, 2);
   assert.equal(saved.language, 'nb');
+  assert.equal(saved.dismissedVersion, '9.9.9');
   server.close();
   if (errors.length) console.error('FEIL I SIDEN:', errors);
   assert.deepEqual(errors, []);

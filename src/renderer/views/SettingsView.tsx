@@ -46,6 +46,14 @@ export function SettingsView({ settings, onChange, onToolsChanged }: { settings:
       </div>
 
       <div className="section">
+        <h2>{t('set.updates')}</h2>
+        <label className="row small">
+          <input type="checkbox" checked={settings.checkUpdates} onChange={(e) => save({ checkUpdates: e.target.checked })} />
+          {t('set.checkUpdates')}
+        </label>
+      </div>
+
+      <div className="section">
         <h2>{t('set.tools')}</h2>
         <p className="muted small">{t('set.toolsNote')}</p>
         {tools.map((tool) => (

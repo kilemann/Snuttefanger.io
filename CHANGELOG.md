@@ -2,6 +2,20 @@
 
 The project uses [semantic versioning](https://semver.org/).
 
+## 0.7.0 (2026-11-07)
+
+### Added
+- Installer for Windows. It installs for your user only, without administrator rights, with shortcuts on the desktop and in the Start menu. There is also a ZIP version that runs without installing.
+- Notice when a new version of Snuttefanger is available, with Download and Not now. It can be turned off under Settings.
+- Reminder when yt-dlp is more than 30 days old, with a button to update it.
+- New app icon: film strip, cassette and scissors.
+- Export and add to Join: the clips are exported and added to Join in order when they are done.
+- Undo and redo in Cut, with buttons or Ctrl+Z and Ctrl+Y.
+- Names for clips. A name becomes the file name.
+
+### Changed
+- The app starts much faster. The portable exe unpacked 110 MB every time it started, and is replaced by the installer and the ZIP version.
+
 ## 0.6.1 (2026-11-05)
 
 ### Changed
