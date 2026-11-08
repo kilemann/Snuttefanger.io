@@ -36,6 +36,7 @@ test('videovalg begrenser oppløsning og filformat', () => {
   assert.equal(a[a.indexOf('-S') + 1], 'res:1080');
   assert.equal(a[a.indexOf('--merge-output-format') + 1], 'mp4');
   assert.ok(!a.includes('--embed-thumbnail'));
+  assert.equal(a[a.indexOf('before_dl:SNUTTTITLE %(title)s') - 1], '--print', 'tittelen skrives ut før nedlasting');
   assert.ok(!buildDownloadArgs({ ...req, quality: 'best' }, tools, '/t', false).includes('-S'));
 });
 

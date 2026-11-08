@@ -42,7 +42,8 @@ const assert = require('node:assert/strict');
   await page.locator('button.primary', { hasText: 'Download' }).waitFor({ timeout: 60000 });
   await page.screenshot({ path: join(shots, '1-last-ned.png') });
   await app.evaluate(async ({ dialog }, dir) => { dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [dir] }); }, join(root, 'ned'));
-  await page.getByRole('button', { name: 'Choose folder' }).click();
+  // Nederste Velg mappe hører til vanlig nedlasting. Den øverste hører til Hurtig MP3.
+  await page.getByRole('button', { name: 'Choose folder' }).last().click();
   await page.waitForFunction((d) => document.querySelector('input[aria-label="Save to"]').value === d, join(root, 'ned'));
   await page.locator('button.primary', { hasText: 'Download' }).click();
   await page.locator('.job[data-status=done]').waitFor({ timeout: 90000 });
@@ -193,6 +194,27 @@ const assert = require('node:assert/strict');
   await page.waitForTimeout(1500);
   await page.screenshot({ path: join(shots, '5-innstillinger.png') });
   await page.getByLabel('Simultaneous downloads').selectOption('2');
+
+  // Hurtig MP3: lim inn lenken, og lyden lastes ned som MP3 til valgt mappe uten flere klikk
+  const quickDir = join(root, 'hurtig');
+  await app.evaluate(({ dialog }, d) => { dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [d] }); }, quickDir);
+  await page.getByRole('button', { name: 'Download', exact: true }).first().click();
+  await page.locator('.quick').getByRole('button', { name: 'Choose folder' }).click();
+  await page.locator('.quick-folder', { hasText: quickDir }).waitFor();
+  await page.getByLabel('Link for quick MP3').evaluate((el, link) => {
+    const dt = new DataTransfer();
+    dt.setData('text/plain', link);
+    el.focus();
+    el.dispatchEvent(new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true }));
+  }, url);
+  await page.getByText(`Started: ${url}`).waitFor();
+  assert.equal(await page.getByLabel('Link for quick MP3').inputValue(), '', 'boksen tømmes for neste lenke');
+  await page.screenshot({ path: join(shots, '15-hurtig-mp3.png') });
+  const waitFile = async (dir, re) => { for (let i = 0; i < 300; i++) { try { const f = readdirSync(dir).find((x) => re.test(x)); if (f) return f; } catch {} await page.waitForTimeout(100); } throw new Error(`ingen fil i ${dir}`); };
+  const quickFile = await waitFile(quickDir, /\.mp3$/);
+  const quickCodec = execFileSync(join(binDir, 'ffprobe'), ['-v', 'error', '-show_entries', 'stream=codec_name', '-of', 'csv=p=0', join(quickDir, quickFile)]).toString().trim();
+  assert.equal(quickCodec, 'mp3');
+  await page.getByRole('button', { name: 'Settings' }).click();
 
   // Bytt til norsk: menyen, køen og hjelpen følger med, også meldinger som allerede finnes
   await page.getByLabel('Language').selectOption('nb');

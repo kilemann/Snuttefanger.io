@@ -9,6 +9,9 @@ const en = {
   'app.menu': 'Main menu', 'app.about': 'About and help',
   'app.toolsBanner': 'Snuttefanger needs yt-dlp and FFmpeg before it can download and cut.', 'app.goToTools': 'Go to tools',
 
+  'dl.quickTitle': 'Quick MP3', 'dl.quickLabel': 'Link for quick MP3', 'dl.quickPlaceholder': 'Paste a link, and the audio is downloaded as MP3',
+  'dl.quickHint': 'Paste a link here, and the audio is downloaded as MP3 right away. You can paste the next link at once.',
+  'dl.quickStarted': 'Started: {url}', 'dl.quickFolder': 'Saved in', 'dl.normal': 'Choose quality and format',
   'dl.title': 'Download', 'dl.address': 'Web address', 'dl.placeholder': 'Paste the address of a video',
   'dl.getInfo': 'Get info', 'dl.gettingInfo': 'Getting info', 'dl.type': 'Download', 'dl.typeLabel': 'Download type',
   'dl.videoAudio': 'Video and audio', 'dl.audioOnly': 'Audio only', 'dl.quality': 'Quality', 'dl.best': 'Best available',
@@ -110,6 +113,9 @@ const nb: Record<Key, string> = {
   'app.menu': 'Hovedmeny', 'app.about': 'Om appen og hjelp',
   'app.toolsBanner': 'Snuttefanger trenger yt-dlp og FFmpeg før den kan laste ned og klippe.', 'app.goToTools': 'Gå til verktøy',
 
+  'dl.quickTitle': 'Hurtig MP3', 'dl.quickLabel': 'Lenke for hurtig MP3', 'dl.quickPlaceholder': 'Lim inn en lenke, så lastes lyden ned som MP3',
+  'dl.quickHint': 'Lim inn en lenke her, så lastes lyden ned som MP3 med en gang. Du kan lime inn neste lenke med en gang.',
+  'dl.quickStarted': 'Startet: {url}', 'dl.quickFolder': 'Lagres i', 'dl.normal': 'Velg kvalitet og format',
   'dl.title': 'Last ned', 'dl.address': 'Nettadresse', 'dl.placeholder': 'Lim inn adressen til en video',
   'dl.getInfo': 'Hent info', 'dl.gettingInfo': 'Henter info', 'dl.type': 'Last ned', 'dl.typeLabel': 'Hva som lastes ned',
   'dl.videoAudio': 'Video og lyd', 'dl.audioOnly': 'Bare lyd', 'dl.quality': 'Kvalitet', 'dl.best': 'Beste tilgjengelige',

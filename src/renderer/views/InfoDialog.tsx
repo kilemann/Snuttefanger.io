@@ -10,6 +10,7 @@ const CONTENT: Record<Language, Content> = {
     intro: (v) => `Version ${v}. Snuttefanger downloads video and audio, and cuts files without losing quality.`,
     sections: [
       ['Downloading', [
+        'Quick MP3: paste a link in the top box under Download, and the audio is downloaded as MP3 right away.',
         'Paste an address under Download and select Get info.',
         'Choose Video and audio or Audio only, then quality, format and folder, and select Download.',
         'Follow the download under Queue. There you can pause, resume or cancel.',
@@ -50,6 +51,7 @@ const CONTENT: Record<Language, Content> = {
     ],
     versionsTitle: 'Versions',
     versions: [
+      ['v0.7.1', 'Quick MP3: paste a link and the audio is downloaded as MP3 right away.'],
       ['v0.7.0', 'Installer and faster start, update notice, new icon, clip names, undo and redo, and Export and add to Join.'],
       ['v0.6.1', 'Speed in Join is chosen for each file.'],
       ['v0.6.0', 'Waveform with zoom and snap to silence. Clips are remembered. Join effects, title and artist, and listening before export. Smaller FFmpeg.'],
@@ -65,6 +67,7 @@ const CONTENT: Record<Language, Content> = {
     intro: (v) => `Versjon ${v}. Snuttefanger laster ned video og lyd, og klipper filer uten kvalitetstap.`,
     sections: [
       ['Slik laster du ned', [
+        'Hurtig MP3: lim inn en lenke i den øverste boksen under Last ned, så lastes lyden ned som MP3 med en gang.',
         'Lim inn en adresse under Last ned, og velg Hent info.',
         'Velg Video og lyd eller Bare lyd, deretter kvalitet, format og mappe, og velg Last ned.',
         'Følg nedlastingen under Kø. Der kan du pause, fortsette eller avbryte.',
@@ -105,6 +108,7 @@ const CONTENT: Record<Language, Content> = {
     ],
     versionsTitle: 'Versjoner',
     versions: [
+      ['v0.7.1', 'Hurtig MP3: lim inn en lenke, så lastes lyden ned som MP3 med en gang.'],
       ['v0.7.0', 'Installasjonsprogram og raskere oppstart, varsel om ny versjon, nytt ikon, navn på klipp, angre og gjør om, og Eksporter og legg i Skjøt.'],
       ['v0.6.1', 'Hastighet i Skjøt velges for hver fil.'],
       ['v0.6.0', 'Bølgeform med zoom og fest til stillhet. Klippene huskes. Effekter, tittel og artist, og lytting før eksport i Skjøt. Mindre FFmpeg.'],

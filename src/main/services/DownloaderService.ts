@@ -7,6 +7,7 @@ import { runProcess } from './ProcessManager';
 
 const PROGRESS = 'SNUTTPROG';
 const FILE = 'SNUTTFILE';
+const TITLE = 'SNUTTTITLE';
 
 export function assertHttpUrl(value: string): string {
   let url: URL;
@@ -31,6 +32,7 @@ export function buildDownloadArgs(req: DownloadRequest, tools: ToolPaths, tempDi
   const args = [
     ...commonArgs(tools), '--newline', '--progress', '--no-mtime',
     '--progress-template', `download:${PROGRESS} %(progress)j`,
+    '--print', `before_dl:${TITLE} %(title)s`,
     '--print', `after_move:${FILE} %(filepath)s`,
     '-P', `home:${req.destination}`, '-P', `temp:${tempDir}`,
     '-o', '%(title).150B [%(id)s].%(ext)s', '--embed-metadata',
@@ -102,7 +104,7 @@ export class DownloadRunner implements JobRunner<DownloadRequest> {
 
   private tempDir(job: Readonly<Job>): string { return join(this.deps.tempRoot, job.id); }
 
-  start(req: DownloadRequest, job: Readonly<Job>, onProgress: (p: JobProgress) => void): JobHandle {
+  start(req: DownloadRequest, job: Readonly<Job>, onProgress: (p: JobProgress) => void, onTitle?: (title: string) => void): JobHandle {
     const tempDir = this.tempDir(job);
     const args = buildDownloadArgs(req, this.deps.tools(), tempDir, this.deps.embedThumbnail());
     let outputPath: string | undefined;
@@ -111,6 +113,7 @@ export class DownloadRunner implements JobRunner<DownloadRequest> {
         const p = parseProgressLine(line);
         if (p) onProgress(p);
         else if (line.startsWith(`${FILE} `)) outputPath = line.slice(FILE.length + 1).trim();
+        else if (line.startsWith(`${TITLE} `)) onTitle?.(line.slice(TITLE.length + 1).trim());
       },
     });
     const done = (async () => {

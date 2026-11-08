@@ -293,6 +293,7 @@ test('lydnedlasting omkoder til MP3', async () => {
   const job = await waitFor(queue, (j) => ['done', 'failed'].includes(j.status));
   assert.equal(job.status, 'done', job.error ?? '');
   assert.ok(job.outputPath!.endsWith('.mp3'), job.outputPath ?? '');
+  assert.equal(job.title, 'klipp', 'tittelen fra yt-dlp erstatter adressen');
   const out = await probeMedia(bin.require('ffprobe'), job.outputPath!);
   assert.ok(out.streams.some((s) => s.codec === 'mp3'));
 });

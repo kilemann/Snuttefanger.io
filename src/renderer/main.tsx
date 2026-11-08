@@ -134,7 +134,7 @@ function App() {
             <button className="btn primary" onClick={() => setView('settings')}>{t('app.goToTools')}</button>
           </div>
         )}
-        {view === 'download' && <DownloadView settings={settings} onQueued={() => setView('queue')} />}
+        {view === 'download' && <DownloadView settings={settings} onQueued={() => setView('queue')} onSettings={setSettings} />}
         {view === 'editor' && <EditorView media={media} error={mediaError} onOpen={openMedia} onQueued={() => setView('queue')} onSendToJoin={sendToJoin} />}
         {view === 'join' && <JoinView state={joinState} setState={setJoinState} onQueued={() => setView('queue')} pending={pendingJoin.length} failed={joinFailed} />}
         {view === 'queue' && <QueueView jobs={jobs} onOpen={openMedia} onAddToJoin={addToJoin} joinPaths={joinItems.map((it) => it.path)} />}

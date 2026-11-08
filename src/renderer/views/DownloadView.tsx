@@ -8,7 +8,7 @@ const api = window.snutt;
 const QUALITIES: Exclude<Quality, 'best'>[] = [2160, 1440, 1080, 720, 480];
 const AUDIO: AudioFormat[] = ['mp3', 'm4a', 'opus', 'aac', 'flac', 'wav'];
 
-export function DownloadView({ settings, onQueued }: { settings: Settings; onQueued(): void }) {
+export function DownloadView({ settings, onQueued, onSettings }: { settings: Settings; onQueued(): void; onSettings(s: Settings): void }) {
   const [url, setUrl] = useState('');
   const [info, setInfo] = useState<UrlInfo | null>(null);
   const [busy, setBusy] = useState(false);
@@ -18,6 +18,29 @@ export function DownloadView({ settings, onQueued }: { settings: Settings; onQue
   const [container, setContainer] = useState<VideoContainer>(settings.container);
   const [audioFormat, setAudioFormat] = useState<AudioFormat>(settings.audioFormat);
   const [destination, setDestination] = useState(settings.downloadDir);
+
+  const [quick, setQuick] = useState('');
+  const [quickDone, setQuickDone] = useState<string[]>([]);
+  const [quickError, setQuickError] = useState<string | null>(null);
+
+  // Hurtig MP3: starter med en gang, uten Hent info. Mappen er den som er lagret under Innstillinger.
+  const startQuick = async (text: string) => {
+    const link = text.trim();
+    if (!link) return;
+    setQuickError(null);
+    try {
+      await api.startDownload({ url: link, title: link, mode: 'audio', quality: 'best', container: 'mp4', audioFormat: 'mp3', destination: settings.downloadDir });
+      setQuick('');
+      setQuickDone((old) => [link, ...old].slice(0, 5));
+    } catch (e) {
+      setQuick(link);
+      setQuickError(cleanError(e));
+    }
+  };
+  const chooseQuickFolder = async () => {
+    const d = await api.pickFolder(settings.downloadDir);
+    if (d) onSettings(await api.saveSettings({ downloadDir: d }));
+  };
 
   const fetchInfo = async () => {
     setBusy(true); setError(null); setInfo(null);
@@ -43,6 +66,27 @@ export function DownloadView({ settings, onQueued }: { settings: Settings; onQue
   return (
     <div className="narrow">
       <h1>{t('dl.title')}</h1>
+      <section className="quick" aria-labelledby="quick-title">
+        <h2 id="quick-title">{t('dl.quickTitle')}</h2>
+        <input className="quick-input" type="url" aria-label={t('dl.quickLabel')} placeholder={t('dl.quickPlaceholder')} value={quick}
+          onChange={(e) => { setQuick(e.target.value); setQuickError(null); }}
+          onPaste={(e) => {
+            const text = e.clipboardData.getData('text');
+            if (!text) return;
+            e.preventDefault();
+            void startQuick(text);
+          }}
+          onKeyDown={(e) => { if (e.key === 'Enter') void startQuick(quick); }} />
+        {quickError && <p className="error small" role="alert" style={{ marginTop: 8 }}>{quickError}</p>}
+        {quickDone.map((u, i) => <p key={`${u}-${i}`} className="ok small quick-done">{t('dl.quickStarted', { url: u })}</p>)}
+        <div className="row small" style={{ marginTop: 8 }}>
+          <span className="muted">{t('dl.quickFolder')}</span>
+          <code className="grow quick-folder">{settings.downloadDir}</code>
+          <button className="btn" onClick={chooseQuickFolder}>{t('dl.chooseFolder')}</button>
+        </div>
+        <p className="muted small" style={{ marginTop: 6 }}>{t('dl.quickHint')}</p>
+      </section>
+      <h2>{t('dl.normal')}</h2>
       <form className="row" onSubmit={(e) => { e.preventDefault(); void fetchInfo(); }}>
         <input className="grow" type="url" aria-label={t('dl.address')} placeholder={t('dl.placeholder')} value={url}
           onChange={(e) => { setUrl(e.target.value); setInfo(null); }} />

@@ -8,7 +8,8 @@ export interface JobHandle {
 }
 
 export interface JobRunner<P> {
-  start(payload: P, job: Readonly<Job>, onProgress: (p: JobProgress) => void): JobHandle;
+  /** onTitle: kjøreren kan gi jobben en bedre tittel underveis, for eksempel videoens navn. */
+  start(payload: P, job: Readonly<Job>, onProgress: (p: JobProgress) => void, onTitle?: (title: string) => void): JobHandle;
   /** Rydder delfiler etter avbrutt jobb. Kalles ikke ved pause. */
   cleanup?(job: Readonly<Job>): Promise<void>;
 }
@@ -109,6 +110,8 @@ export class JobQueue {
         e.job.progress = progress;
         const now = Date.now();
         if (now - last > 200) { last = now; this.changed(); }
+      }, (title) => {
+        if (title && title !== e.job.title) { e.job.title = title; this.changed(); }
       });
     } catch (err) {
       this.finishFailed(e, err);

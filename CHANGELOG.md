@@ -2,6 +2,14 @@
 
 The project uses [semantic versioning](https://semver.org/).
 
+## 0.7.1 (2026-11-08)
+
+### Added
+- Quick MP3 at the top of Download: paste a link and the audio is downloaded as MP3 right away to the chosen folder, without Get info. The box is cleared so the next link can be pasted at once.
+
+### Changed
+- Downloads in the queue get the video title as soon as yt-dlp knows it, instead of the web address.
+
 ## 0.7.0 (2026-11-07)
 
 ### Added
