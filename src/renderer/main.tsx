@@ -49,6 +49,8 @@ function App() {
   // Klipp som er sendt til Skjøt, i klippenes rekkefølge. De legges til når jobbene er ferdige.
   const [pendingJoin, setPendingJoin] = useState<string[]>([]);
   const [joinFailed, setJoinFailed] = useState(0);
+  // Hurtig nedlastinger som skal åpnes i Klipp når de er ferdige.
+  const [openWhenDone, setOpenWhenDone] = useState<string[]>([]);
 
   const refreshTools = async () => {
     const tools = await api.getTools();
@@ -76,6 +78,16 @@ function App() {
     setJoinFailed(mine.length - done.length);
     setPendingJoin([]);
   }, [jobs, pendingJoin]);
+
+  useEffect(() => {
+    if (openWhenDone.length === 0) return;
+    const finished = openWhenDone.map((id) => jobs.find((j) => j.id === id)).filter((j) => j && ['done', 'failed', 'canceled'].includes(j.status));
+    if (finished.length === 0) return;
+    setOpenWhenDone((old) => old.filter((id) => !finished.some((j) => j!.id === id)));
+    // Er flere ferdige samtidig, åpnes den siste som ble limt inn.
+    const last = finished.filter((j) => j!.status === 'done' && j!.outputPath).at(-1);
+    if (last) void openMedia(last.outputPath!);
+  }, [jobs, openWhenDone]);
 
   const sendToJoin = (ids: string[]) => {
     setJoinFailed(0);
@@ -134,7 +146,7 @@ function App() {
             <button className="btn primary" onClick={() => setView('settings')}>{t('app.goToTools')}</button>
           </div>
         )}
-        {view === 'download' && <DownloadView settings={settings} onQueued={() => setView('queue')} onSettings={setSettings} />}
+        {view === 'download' && <DownloadView settings={settings} onQueued={() => setView('queue')} onSettings={setSettings} onOpenWhenDone={(id) => setOpenWhenDone((old) => [...old, id])} />}
         {view === 'editor' && <EditorView media={media} error={mediaError} onOpen={openMedia} onQueued={() => setView('queue')} onSendToJoin={sendToJoin} />}
         {view === 'join' && <JoinView state={joinState} setState={setJoinState} onQueued={() => setView('queue')} pending={pendingJoin.length} failed={joinFailed} />}
         {view === 'queue' && <QueueView jobs={jobs} onOpen={openMedia} onAddToJoin={addToJoin} joinPaths={joinItems.map((it) => it.path)} />}

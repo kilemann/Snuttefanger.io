@@ -29,7 +29,7 @@ const assert = require('node:assert/strict');
   page.on('pageerror', (e) => errors.push(e.message));
   page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text() + ' ' + JSON.stringify(m.location())); });
   await page.setViewportSize({ width: 1240, height: 820 });
-  await page.getByRole('heading', { name: 'Download' }).waitFor();
+  await page.getByRole('heading', { name: 'Download', exact: true }).waitFor();
   // Varsel om ny versjon, og Ikke nå huskes
   await page.getByText('Snuttefanger v9.9.9 is available.').waitFor({ timeout: 15000 });
   await page.screenshot({ path: join(shots, '0-oppdatering.png') });
@@ -195,25 +195,40 @@ const assert = require('node:assert/strict');
   await page.screenshot({ path: join(shots, '5-innstillinger.png') });
   await page.getByLabel('Simultaneous downloads').selectOption('2');
 
-  // Hurtig MP3: lim inn lenken, og lyden lastes ned som MP3 til valgt mappe uten flere klikk
+  // Hurtig nedlasting: lim inn lenken, og lyden lastes ned som MP3 til valgt mappe uten flere klikk
   const quickDir = join(root, 'hurtig');
   await app.evaluate(({ dialog }, d) => { dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [d] }); }, quickDir);
   await page.getByRole('button', { name: 'Download', exact: true }).first().click();
   await page.locator('.quick').getByRole('button', { name: 'Choose folder' }).click();
   await page.locator('.quick-folder', { hasText: quickDir }).waitFor();
-  await page.getByLabel('Link for quick MP3').evaluate((el, link) => {
+  const pasteQuick = (link) => page.getByLabel('Link for quick download').evaluate((el, l) => {
     const dt = new DataTransfer();
-    dt.setData('text/plain', link);
+    dt.setData('text/plain', l);
     el.focus();
     el.dispatchEvent(new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true }));
-  }, url);
+  }, link);
+  assert.equal(await page.getByLabel('Download as').inputValue(), 'audio', 'MP3 er standard');
+  await pasteQuick(url);
   await page.getByText(`Started: ${url}`).waitFor();
-  assert.equal(await page.getByLabel('Link for quick MP3').inputValue(), '', 'boksen tømmes for neste lenke');
-  await page.screenshot({ path: join(shots, '15-hurtig-mp3.png') });
+  assert.equal(await page.getByLabel('Link for quick download').inputValue(), '', 'boksen tømmes for neste lenke');
   const waitFile = async (dir, re) => { for (let i = 0; i < 300; i++) { try { const f = readdirSync(dir).find((x) => re.test(x)); if (f) return f; } catch {} await page.waitForTimeout(100); } throw new Error(`ingen fil i ${dir}`); };
   const quickFile = await waitFile(quickDir, /\.mp3$/);
   const quickCodec = execFileSync(join(binDir, 'ffprobe'), ['-v', 'error', '-show_entries', 'stream=codec_name', '-of', 'csv=p=0', join(quickDir, quickFile)]).toString().trim();
   assert.equal(quickCodec, 'mp3');
+
+  // Video rett til Klipp: velg Video og Åpne i Klipp, lim inn, og Klipp åpnes med filen når den er lastet ned
+  await page.getByLabel('Download as').selectOption('video');
+  await page.getByLabel('Open in Cut when the download is done').check();
+  await page.screenshot({ path: join(shots, '15-hurtig-mp3.png') });
+  await pasteQuick(`${url}?video`);
+  await page.getByRole('heading', { name: 'Cut', exact: true }).waitFor({ state: 'detached' }).catch(() => {});
+  await page.locator('video').waitFor({ timeout: 60000 });
+  await page.waitForFunction(() => /\.mp4$/.test(document.querySelector('h1')?.textContent ?? ''), null, { timeout: 60000 });
+  assert.ok(await page.getByRole('button', { name: 'Cut', exact: true }).getAttribute('aria-current') === 'page', 'Klipp er åpnet');
+  assert.ok(readdirSync(quickDir).some((f) => f.endsWith('.mp4')), 'videoen ligger i valgt mappe');
+  await page.getByRole('button', { name: 'Download', exact: true }).first().click();
+  await page.getByLabel('Download as').selectOption('audio');
+  await page.getByLabel('Open in Cut when the download is done').uncheck();
   await page.getByRole('button', { name: 'Settings' }).click();
 
   // Bytt til norsk: menyen, køen og hjelpen følger med, også meldinger som allerede finnes
@@ -233,6 +248,7 @@ const assert = require('node:assert/strict');
   assert.equal(saved.maxDownloads, 2);
   assert.equal(saved.language, 'nb');
   assert.equal(saved.dismissedVersion, '9.9.9');
+  assert.deepEqual([saved.quickMode, saved.quickOpenCut], ['audio', false]);
   server.close();
   if (errors.length) console.error('FEIL I SIDEN:', errors);
   assert.deepEqual(errors, []);

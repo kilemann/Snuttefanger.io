@@ -357,4 +357,6 @@ test('klippnavn blir trygge filnavn i Windows', () => {
   const d = { downloadDir: '/d', exportDir: '', quality: 'best', container: 'mp4', audioFormat: 'mp3', maxDownloads: 3, embedThumbnail: true, ytDlpPath: '', ffmpegPath: '', ffprobePath: '', denoPath: '', language: 'nb', checkUpdates: true, dismissedVersion: '' } as Settings;
   assert.equal(sanitizeSettings({ checkUpdates: false, dismissedVersion: '0.7.1' }, d).checkUpdates, false);
   assert.equal(sanitizeSettings({ checkUpdates: 'nei' as never }, d).checkUpdates, true);
+  assert.equal(sanitizeSettings({ quickMode: 'video', quickOpenCut: true }, { ...d, quickMode: 'audio', quickOpenCut: false }).quickMode, 'video');
+  assert.equal(sanitizeSettings({ quickMode: 'gif' as never }, { ...d, quickMode: 'audio', quickOpenCut: false }).quickMode, 'audio');
 });

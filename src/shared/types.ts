@@ -144,6 +144,10 @@ export interface Settings {
   checkUpdates: boolean;
   /** Versjonen brukeren har sagt Ikke nå til. */
   dismissedVersion: string;
+  /** Hurtig nedlasting: lyd som MP3, eller video i valgt filformat. */
+  quickMode: 'audio' | 'video';
+  /** Åpne filen i Klipp når hurtig nedlasting er ferdig. */
+  quickOpenCut: boolean;
 }
 
 export interface UpdateInfo { latest: string; newer: boolean }
@@ -184,7 +188,8 @@ export interface SnuttApi {
   checkUpdate(): Promise<UpdateInfo | null>;
   openDownloadPage(): Promise<void>;
   fetchUrlInfo(url: string): Promise<UrlInfo>;
-  startDownload(request: DownloadRequest): Promise<void>;
+  /** Gir id-en til jobben i køen. */
+  startDownload(request: DownloadRequest): Promise<string>;
   pickMedia(): Promise<string | null>;
   pickMediaMany(): Promise<string[]>;
   probeMedia(path: string): Promise<MediaInfo>;

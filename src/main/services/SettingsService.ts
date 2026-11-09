@@ -25,6 +25,8 @@ export function sanitizeSettings(raw: Partial<Settings>, defaults: Settings): Se
     language: isLanguage(raw.language) ? raw.language : defaults.language,
     checkUpdates: typeof raw.checkUpdates === 'boolean' ? raw.checkUpdates : defaults.checkUpdates,
     dismissedVersion: str(raw.dismissedVersion, '').slice(0, 40),
+    quickMode: raw.quickMode === 'video' ? 'video' : defaults.quickMode,
+    quickOpenCut: typeof raw.quickOpenCut === 'boolean' ? raw.quickOpenCut : defaults.quickOpenCut,
   };
 }
 

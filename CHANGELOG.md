@@ -2,6 +2,15 @@
 
 The project uses [semantic versioning](https://semver.org/).
 
+## 0.8.0 (2026-11-09)
+
+### Added
+- Quick download can download video as well as MP3. Choose under Download as. Video uses the file format chosen under Settings (MP4 by default).
+- Open in Cut when the download is done: the file opens in Cut by itself, ready to cut. If several finish at the same time, the last one pasted is opened.
+
+### Changed
+- Quick MP3 is now called Quick download. The choices are remembered.
+
 ## 0.7.1 (2026-11-08)
 
 ### Added

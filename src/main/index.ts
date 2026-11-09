@@ -46,7 +46,7 @@ app.whenReady().then(() => {
   const settings = new SettingsService(data, {
     downloadDir: join(app.getPath('videos'), 'Snuttefanger'), exportDir: '', quality: 'best', container: 'mp4', audioFormat: 'mp3',
     maxDownloads: 3, embedThumbnail: true, ytDlpPath: '', ffmpegPath: '', ffprobePath: '', denoPath: '',
-    language: languageFromLocale(app.getLocale()), checkUpdates: true, dismissedVersion: '',
+    language: languageFromLocale(app.getLocale()), checkUpdates: true, dismissedVersion: '', quickMode: 'audio', quickOpenCut: false,
   });
   const binaries = new BinaryManager(join(data, 'bin'), () => settings.get(), (s: InstallState) => send('install', s));
   const queue = new JobQueue((jobs: Job[]) => send('jobs', jobs));
@@ -91,7 +91,7 @@ app.whenReady().then(() => {
   ipcMain.handle('download:start', (_e, req: DownloadRequest) => {
     const safe = { ...req, url: assertHttpUrl(req.url) };
     binaries.require('ytDlp'); binaries.require('ffmpeg');
-    queue.enqueue('download', req.title || safe.url, safe);
+    return queue.enqueue('download', req.title || safe.url, safe);
   });
   ipcMain.handle('media:pick', async () => {
     const r = await dialog.showOpenDialog(win!, {

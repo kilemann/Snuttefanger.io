@@ -8,7 +8,7 @@ const api = window.snutt;
 const QUALITIES: Exclude<Quality, 'best'>[] = [2160, 1440, 1080, 720, 480];
 const AUDIO: AudioFormat[] = ['mp3', 'm4a', 'opus', 'aac', 'flac', 'wav'];
 
-export function DownloadView({ settings, onQueued, onSettings }: { settings: Settings; onQueued(): void; onSettings(s: Settings): void }) {
+export function DownloadView({ settings, onQueued, onSettings, onOpenWhenDone }: { settings: Settings; onQueued(): void; onSettings(s: Settings): void; onOpenWhenDone(id: string): void }) {
   const [url, setUrl] = useState('');
   const [info, setInfo] = useState<UrlInfo | null>(null);
   const [busy, setBusy] = useState(false);
@@ -23,19 +23,27 @@ export function DownloadView({ settings, onQueued, onSettings }: { settings: Set
   const [quickDone, setQuickDone] = useState<string[]>([]);
   const [quickError, setQuickError] = useState<string | null>(null);
 
-  // Hurtig MP3: starter med en gang, uten Hent info. Mappen er den som er lagret under Innstillinger.
+  // Hurtig nedlasting: starter med en gang, uten Hent info. Mappen og valgene er de som er lagret under Innstillinger.
   const startQuick = async (text: string) => {
     const link = text.trim();
     if (!link) return;
     setQuickError(null);
     try {
-      await api.startDownload({ url: link, title: link, mode: 'audio', quality: 'best', container: 'mp4', audioFormat: 'mp3', destination: settings.downloadDir });
+      const id = await api.startDownload({
+        url: link, title: link, mode: settings.quickMode, quality: 'best', container: settings.container, audioFormat: 'mp3', destination: settings.downloadDir,
+      });
+      if (settings.quickOpenCut) onOpenWhenDone(id);
       setQuick('');
       setQuickDone((old) => [link, ...old].slice(0, 5));
     } catch (e) {
       setQuick(link);
       setQuickError(cleanError(e));
     }
+  };
+  // Vises med en gang, og lagres etterpå.
+  const saveQuick = async (patch: Partial<Settings>) => {
+    onSettings({ ...settings, ...patch });
+    onSettings(await api.saveSettings(patch));
   };
   const chooseQuickFolder = async () => {
     const d = await api.pickFolder(settings.downloadDir);
@@ -77,6 +85,19 @@ export function DownloadView({ settings, onQueued, onSettings }: { settings: Set
             void startQuick(text);
           }}
           onKeyDown={(e) => { if (e.key === 'Enter') void startQuick(quick); }} />
+        <div className="row small" style={{ marginTop: 10 }}>
+          <label className="row">{t('dl.quickAs')}
+            <select aria-label={t('dl.quickAs')} value={settings.quickMode}
+              onChange={(e) => saveQuick({ quickMode: e.target.value as 'audio' | 'video' })}>
+              <option value="audio">MP3</option>
+              <option value="video">{t('dl.quickVideo', { fmt: settings.container.toUpperCase() })}</option>
+            </select>
+          </label>
+          <label className="row">
+            <input type="checkbox" checked={settings.quickOpenCut} onChange={(e) => saveQuick({ quickOpenCut: e.target.checked })} />
+            {t('dl.quickOpenCut')}
+          </label>
+        </div>
         {quickError && <p className="error small" role="alert" style={{ marginTop: 8 }}>{quickError}</p>}
         {quickDone.map((u, i) => <p key={`${u}-${i}`} className="ok small quick-done">{t('dl.quickStarted', { url: u })}</p>)}
         <div className="row small" style={{ marginTop: 8 }}>
