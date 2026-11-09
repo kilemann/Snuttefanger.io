@@ -39,13 +39,13 @@ const assert = require('node:assert/strict');
   // Nedlasting via GUI
   await page.getByLabel('Web address').fill(url);
   await page.getByRole('button', { name: 'Get info' }).click();
-  await page.locator('button.primary', { hasText: 'Download' }).waitFor({ timeout: 60000 });
+  await page.locator('button.primary', { hasText: /^Download$/ }).waitFor({ timeout: 60000 });
   await page.screenshot({ path: join(shots, '1-last-ned.png') });
   await app.evaluate(async ({ dialog }, dir) => { dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [dir] }); }, join(root, 'ned'));
   // Nederste Velg mappe hører til vanlig nedlasting. Den øverste hører til Hurtig MP3.
   await page.getByRole('button', { name: 'Choose folder' }).last().click();
-  await page.waitForFunction((d) => document.querySelector('input[aria-label="Save to"]').value === d, join(root, 'ned'));
-  await page.locator('button.primary', { hasText: 'Download' }).click();
+  await page.waitForFunction((d) => document.querySelector('code[aria-label="Save to"]').textContent === d, join(root, 'ned'));
+  await page.locator('button.primary', { hasText: /^Download$/ }).click();
   await page.locator('.job[data-status=done]').waitFor({ timeout: 90000 });
   await page.screenshot({ path: join(shots, '2-ko.png') });
 
@@ -147,14 +147,19 @@ const assert = require('node:assert/strict');
   const previewLength = await page.evaluate(() => document.querySelector('audio.preview').duration);
   assert.ok(Math.abs(previewLength - 7.5) < 0.2, `forhåndsvisning ${previewLength}`);
   await page.screenshot({ path: join(shots, '12-skjot-effekter.png') });
+  const joinDir = join(root, 'skjøtet');
+  await app.evaluate(({ dialog }, d) => { dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [d] }); }, joinDir);
+  await page.locator('.folder-row').getByRole('button', { name: 'Choose folder' }).click();
+  await page.locator('.folder-path', { hasText: joinDir }).waitFor();
   await page.getByRole('button', { name: 'Join 2 files' }).click();
   await page.waitForFunction(() => document.querySelectorAll('.job[data-status=done]').length === 5, null, { timeout: 40000 });
-  const joined = readdirSync(join(root, 'ned')).filter((f) => f.includes('(joined)'));
+  const joined = readdirSync(joinDir).filter((f) => f.includes('(joined)'));
+  assert.equal(readdirSync(join(root, 'ned')).filter((f) => f.includes('(joined)')).length, 0, 'skjøtet fil havner i Skjøt-mappen');
   assert.equal(joined.length, 1, readdirSync(join(root, 'ned')).join());
   assert.ok(joined[0].endsWith('.mp3') && joined[0].includes('(audio clip 00.00.06-00.00.09) (joined)'), joined[0]);
-  const joinedLength = Number(execFileSync(join(binDir, 'ffprobe'), ['-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', join(root, 'ned', joined[0])]).toString());
+  const joinedLength = Number(execFileSync(join(binDir, 'ffprobe'), ['-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', join(joinDir, joined[0])]).toString());
   assert.ok(Math.abs(joinedLength - 7.5) < 0.2, `skjøtet lengde ${joinedLength}`);
-  const title = execFileSync(join(binDir, 'ffprobe'), ['-v', 'error', '-show_entries', 'format_tags=title', '-of', 'csv=p=0', join(root, 'ned', joined[0])]).toString().trim();
+  const title = execFileSync(join(binDir, 'ffprobe'), ['-v', 'error', '-show_entries', 'format_tags=title', '-of', 'csv=p=0', join(joinDir, joined[0])]).toString().trim();
   assert.equal(title, 'Min mix');
   for (const f of made) {
     const out = execFileSync(join(binDir, 'ffprobe'), ['-v', 'error', '-show_entries', 'format=start_time', '-of', 'csv=p=0', join(root, 'ned', f)]).toString();
@@ -195,40 +200,44 @@ const assert = require('node:assert/strict');
   await page.screenshot({ path: join(shots, '5-innstillinger.png') });
   await page.getByLabel('Simultaneous downloads').selectOption('2');
 
-  // Hurtig nedlasting: lim inn lenken, og lyden lastes ned som MP3 til valgt mappe uten flere klikk
+  // 1. Hurtig MP3: lim inn lenken, og lyden lastes ned som MP3 til sin egen mappe uten flere klikk
   const quickDir = join(root, 'hurtig');
-  await app.evaluate(({ dialog }, d) => { dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [d] }); }, quickDir);
+  const cutDir = join(root, 'til klipp');
+  const pickDir = (d) => app.evaluate(({ dialog }, dir) => { dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [dir] }); }, d);
   await page.getByRole('button', { name: 'Download', exact: true }).first().click();
-  await page.locator('.quick').getByRole('button', { name: 'Choose folder' }).click();
-  await page.locator('.quick-folder', { hasText: quickDir }).waitFor();
-  const pasteQuick = (link) => page.getByLabel('Link for quick download').evaluate((el, l) => {
+  await pickDir(quickDir);
+  await page.locator('.quick').nth(0).getByRole('button', { name: 'Choose folder' }).click();
+  await page.locator('.quick').nth(0).locator('.folder-path', { hasText: quickDir }).waitFor();
+  await pickDir(cutDir);
+  await page.locator('.quick').nth(1).getByRole('button', { name: 'Choose folder' }).click();
+  await page.locator('.quick').nth(1).locator('.folder-path', { hasText: cutDir }).waitFor();
+  await page.getByLabel('Link for quick MP3').evaluate((el, l) => {
     const dt = new DataTransfer();
     dt.setData('text/plain', l);
     el.focus();
     el.dispatchEvent(new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true }));
-  }, link);
-  assert.equal(await page.getByLabel('Download as').inputValue(), 'audio', 'MP3 er standard');
-  await pasteQuick(url);
+  }, url);
   await page.getByText(`Started: ${url}`).waitFor();
-  assert.equal(await page.getByLabel('Link for quick download').inputValue(), '', 'boksen tømmes for neste lenke');
+  assert.equal(await page.getByLabel('Link for quick MP3').inputValue(), '', 'boksen tømmes for neste lenke');
   const waitFile = async (dir, re) => { for (let i = 0; i < 300; i++) { try { const f = readdirSync(dir).find((x) => re.test(x)); if (f) return f; } catch {} await page.waitForTimeout(100); } throw new Error(`ingen fil i ${dir}`); };
   const quickFile = await waitFile(quickDir, /\.mp3$/);
   const quickCodec = execFileSync(join(binDir, 'ffprobe'), ['-v', 'error', '-show_entries', 'stream=codec_name', '-of', 'csv=p=0', join(quickDir, quickFile)]).toString().trim();
   assert.equal(quickCodec, 'mp3');
 
-  // Video rett til Klipp: velg Video og Åpne i Klipp, lim inn, og Klipp åpnes med filen når den er lastet ned
+  // 2. Last ned til Klipp: lenke, velg video, trykk Last ned og klipp, og Klipp åpnes med filen
+  await page.getByLabel('Link to download and cut').fill(`${url}?video`);
   await page.getByLabel('Download as').selectOption('video');
-  await page.getByLabel('Open in Cut when the download is done').check();
   await page.screenshot({ path: join(shots, '15-hurtig-mp3.png') });
-  await pasteQuick(`${url}?video`);
-  await page.getByRole('heading', { name: 'Cut', exact: true }).waitFor({ state: 'detached' }).catch(() => {});
-  await page.locator('video').waitFor({ timeout: 60000 });
+  await page.getByRole('button', { name: 'Download and cut' }).click();
   await page.waitForFunction(() => /\.mp4$/.test(document.querySelector('h1')?.textContent ?? ''), null, { timeout: 60000 });
-  assert.ok(await page.getByRole('button', { name: 'Cut', exact: true }).getAttribute('aria-current') === 'page', 'Klipp er åpnet');
-  assert.ok(readdirSync(quickDir).some((f) => f.endsWith('.mp4')), 'videoen ligger i valgt mappe');
-  await page.getByRole('button', { name: 'Download', exact: true }).first().click();
-  await page.getByLabel('Download as').selectOption('audio');
-  await page.getByLabel('Open in Cut when the download is done').uncheck();
+  assert.equal(await page.getByRole('button', { name: 'Cut', exact: true }).getAttribute('aria-current'), 'page', 'Klipp er åpnet');
+  assert.ok(readdirSync(cutDir).some((f) => f.endsWith('.mp4')), 'videoen ligger i Last ned til Klipp-mappen');
+  assert.ok(!readdirSync(quickDir).some((f) => f.endsWith('.mp4')), 'og ikke i Hurtig MP3-mappen');
+
+  // Alle mappene står under Innstillinger
+  await page.getByRole('button', { name: 'Settings' }).click();
+  for (const d of [quickDir, cutDir, join(root, 'ned'), joinDir]) await page.locator('.folder-path', { hasText: d }).first().waitFor();
+  await page.screenshot({ path: join(shots, '16-mapper.png') });
   await page.getByRole('button', { name: 'Settings' }).click();
 
   // Bytt til norsk: menyen, køen og hjelpen følger med, også meldinger som allerede finnes
@@ -248,7 +257,7 @@ const assert = require('node:assert/strict');
   assert.equal(saved.maxDownloads, 2);
   assert.equal(saved.language, 'nb');
   assert.equal(saved.dismissedVersion, '9.9.9');
-  assert.deepEqual([saved.quickMode, saved.quickOpenCut], ['audio', false]);
+  assert.deepEqual([saved.quickMp3Dir, saved.cutDownloadDir, saved.joinDir, saved.cutDownloadMode], [quickDir, cutDir, joinDir, 'video']);
   server.close();
   if (errors.length) console.error('FEIL I SIDEN:', errors);
   assert.deepEqual(errors, []);

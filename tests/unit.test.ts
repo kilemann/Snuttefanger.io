@@ -357,6 +357,13 @@ test('klippnavn blir trygge filnavn i Windows', () => {
   const d = { downloadDir: '/d', exportDir: '', quality: 'best', container: 'mp4', audioFormat: 'mp3', maxDownloads: 3, embedThumbnail: true, ytDlpPath: '', ffmpegPath: '', ffprobePath: '', denoPath: '', language: 'nb', checkUpdates: true, dismissedVersion: '' } as Settings;
   assert.equal(sanitizeSettings({ checkUpdates: false, dismissedVersion: '0.7.1' }, d).checkUpdates, false);
   assert.equal(sanitizeSettings({ checkUpdates: 'nei' as never }, d).checkUpdates, true);
-  assert.equal(sanitizeSettings({ quickMode: 'video', quickOpenCut: true }, { ...d, quickMode: 'audio', quickOpenCut: false }).quickMode, 'video');
-  assert.equal(sanitizeSettings({ quickMode: 'gif' as never }, { ...d, quickMode: 'audio', quickOpenCut: false }).quickMode, 'audio');
+  // Oppgradering fra 0.8: de nye mappene arver mappene som gjaldt før.
+  const fresh = { ...d, quickMp3Dir: '/musikk', cutDownloadDir: '/video', cutDownloadMode: 'video', joinDir: '' } as Settings;
+  const old = sanitizeSettings({ downloadDir: '/mine', exportDir: '/klipp' }, fresh);
+  assert.deepEqual([old.quickMp3Dir, old.cutDownloadDir, old.joinDir, old.cutDownloadMode], ['/mine', '/mine', '/klipp', 'video']);
+  const neu = sanitizeSettings({}, fresh);
+  assert.deepEqual([neu.quickMp3Dir, neu.cutDownloadDir, neu.joinDir], ['/musikk', '/video', '']);
+  const own = sanitizeSettings({ downloadDir: '/mine', quickMp3Dir: '/mp3', cutDownloadDir: '/til-klipp', joinDir: '', cutDownloadMode: 'audio' }, fresh);
+  assert.deepEqual([own.quickMp3Dir, own.cutDownloadDir, own.joinDir, own.cutDownloadMode], ['/mp3', '/til-klipp', '', 'audio']);
+  assert.equal(sanitizeSettings({ cutDownloadMode: 'gif' as never }, fresh).cutDownloadMode, 'video');
 });

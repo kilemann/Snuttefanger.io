@@ -46,7 +46,8 @@ app.whenReady().then(() => {
   const settings = new SettingsService(data, {
     downloadDir: join(app.getPath('videos'), 'Snuttefanger'), exportDir: '', quality: 'best', container: 'mp4', audioFormat: 'mp3',
     maxDownloads: 3, embedThumbnail: true, ytDlpPath: '', ffmpegPath: '', ffprobePath: '', denoPath: '',
-    language: languageFromLocale(app.getLocale()), checkUpdates: true, dismissedVersion: '', quickMode: 'audio', quickOpenCut: false,
+    language: languageFromLocale(app.getLocale()), checkUpdates: true, dismissedVersion: '',
+    quickMp3Dir: join(app.getPath('music'), 'Snuttefanger'), cutDownloadDir: join(app.getPath('videos'), 'Snuttefanger'), cutDownloadMode: 'video', joinDir: '',
   });
   const binaries = new BinaryManager(join(data, 'bin'), () => settings.get(), (s: InstallState) => send('install', s));
   const queue = new JobQueue((jobs: Job[]) => send('jobs', jobs));
@@ -60,7 +61,7 @@ app.whenReady().then(() => {
   };
   queue.register('download', new DownloadRunner(deps));
   const joinDeps: JoinDeps = {
-    ffmpeg: () => binaries.require('ffmpeg'), ffprobe: () => binaries.require('ffprobe'), exportDir: () => settings.get().exportDir, language: () => settings.get().language,
+    ffmpeg: () => binaries.require('ffmpeg'), ffprobe: () => binaries.require('ffprobe'), exportDir: () => settings.get().joinDir, language: () => settings.get().language,
   };
   queue.register('join', new JoinRunner(joinDeps));
   const projects = new ProjectStore(data);

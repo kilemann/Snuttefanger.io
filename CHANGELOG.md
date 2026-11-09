@@ -2,6 +2,17 @@
 
 The project uses [semantic versioning](https://semver.org/).
 
+## 0.9.0 (2026-11-09)
+
+### Changed
+- Download has three parts: Quick MP3 (starts when you paste), Download to Cut (MP3 or video, starts with the Download and cut button and opens in Cut when done) and normal download.
+- Each part has its own folder: Quick MP3, Download to Cut and normal download. Join has its own folder for joined files (the folder of the first file by default). All folders are shown under Settings.
+- When upgrading, the new folders start out as the folders used before.
+
+### Fixed
+- Clips changed less than a second before leaving Cut could be forgotten. They are now saved right away.
+- Opening a file in Cut could show the previous file for a moment.
+
 ## 0.8.0 (2026-11-09)
 
 ### Added

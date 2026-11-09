@@ -10,7 +10,9 @@ const CONTENT: Record<Language, Content> = {
     intro: (v) => `Version ${v}. Snuttefanger downloads video and audio, and cuts files without losing quality.`,
     sections: [
       ['Downloading', [
-        'Quick download: paste a link in the top box under Download, and the download starts right away, as MP3 or video. Tick Open in Cut to cut it as soon as it is done.',
+        'Quick MP3: paste a link in the top box, and the audio is downloaded as MP3 right away.',
+        'Download to Cut: paste a link, choose MP3 or video and select Download and cut. Cut opens with the file when it is done.',
+        'Each part has its own folder. All folders are also under Settings.',
         'Paste an address under Download and select Get info.',
         'Choose Video and audio or Audio only, then quality, format and folder, and select Download.',
         'Follow the download under Queue. There you can pause, resume or cancel.',
@@ -51,6 +53,7 @@ const CONTENT: Record<Language, Content> = {
     ],
     versionsTitle: 'Versions',
     versions: [
+      ['v0.9.0', 'Download has three parts: Quick MP3, Download to Cut and normal download, each with its own folder. Join has its own folder.'],
       ['v0.8.0', 'Quick download as MP3 or video, with Open in Cut when the download is done.'],
       ['v0.7.1', 'Quick MP3: paste a link and the audio is downloaded as MP3 right away.'],
       ['v0.7.0', 'Installer and faster start, update notice, new icon, clip names, undo and redo, and Export and add to Join.'],
@@ -68,7 +71,9 @@ const CONTENT: Record<Language, Content> = {
     intro: (v) => `Versjon ${v}. Snuttefanger laster ned video og lyd, og klipper filer uten kvalitetstap.`,
     sections: [
       ['Slik laster du ned', [
-        'Hurtig nedlasting: lim inn en lenke i den øverste boksen under Last ned, så starter nedlastingen med en gang, som MP3 eller video. Kryss av for Åpne i Klipp for å klippe så snart den er ferdig.',
+        'Hurtig MP3: lim inn en lenke i den øverste boksen, så lastes lyden ned som MP3 med en gang.',
+        'Last ned til Klipp: lim inn en lenke, velg MP3 eller video og velg Last ned og klipp. Klipp åpnes med filen når den er ferdig.',
+        'Hver del har sin egen mappe. Alle mappene finnes også under Innstillinger.',
         'Lim inn en adresse under Last ned, og velg Hent info.',
         'Velg Video og lyd eller Bare lyd, deretter kvalitet, format og mappe, og velg Last ned.',
         'Følg nedlastingen under Kø. Der kan du pause, fortsette eller avbryte.',
@@ -109,6 +114,7 @@ const CONTENT: Record<Language, Content> = {
     ],
     versionsTitle: 'Versjoner',
     versions: [
+      ['v0.9.0', 'Last ned har tre deler: Hurtig MP3, Last ned til Klipp og vanlig nedlasting, hver med sin egen mappe. Skjøt har egen mappe.'],
       ['v0.8.0', 'Hurtig nedlasting som MP3 eller video, med Åpne i Klipp når nedlastingen er ferdig.'],
       ['v0.7.1', 'Hurtig MP3: lim inn en lenke, så lastes lyden ned som MP3 med en gang.'],
       ['v0.7.0', 'Installasjonsprogram og raskere oppstart, varsel om ny versjon, nytt ikon, navn på klipp, angre og gjør om, og Eksporter og legg i Skjøt.'],

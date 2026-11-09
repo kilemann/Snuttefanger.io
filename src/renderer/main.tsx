@@ -100,11 +100,12 @@ function App() {
     finally { setYtDlpBusy(false); void refreshTools(); }
   };
 
+  // Bytter til Klipp først når den nye filen er lest, så forrige fil ikke vises et øyeblikk.
   const openMedia = async (path: string) => {
-    setView('editor');
     setMediaError(null);
     try { setMedia(await api.openMedia(path)); }
     catch (e) { setMediaError(cleanError(e)); }
+    setView('editor');
   };
 
   const active = jobs.filter((j) => j.status === 'running' || j.status === 'queued').length;
@@ -148,7 +149,8 @@ function App() {
         )}
         {view === 'download' && <DownloadView settings={settings} onQueued={() => setView('queue')} onSettings={setSettings} onOpenWhenDone={(id) => setOpenWhenDone((old) => [...old, id])} />}
         {view === 'editor' && <EditorView media={media} error={mediaError} onOpen={openMedia} onQueued={() => setView('queue')} onSendToJoin={sendToJoin} />}
-        {view === 'join' && <JoinView state={joinState} setState={setJoinState} onQueued={() => setView('queue')} pending={pendingJoin.length} failed={joinFailed} />}
+        {view === 'join' && <JoinView state={joinState} setState={setJoinState} onQueued={() => setView('queue')} pending={pendingJoin.length} failed={joinFailed}
+          joinDir={settings.joinDir} onJoinDir={async (d) => { setSettings({ ...settings, joinDir: d }); setSettings(await api.saveSettings({ joinDir: d })); }} />}
         {view === 'queue' && <QueueView jobs={jobs} onOpen={openMedia} onAddToJoin={addToJoin} joinPaths={joinItems.map((it) => it.path)} />}
         {view === 'settings' && <SettingsView settings={settings} onChange={setSettings} onToolsChanged={refreshTools} />}
       </main>

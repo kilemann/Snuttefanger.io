@@ -235,11 +235,20 @@ function Cutter({ media, onQueued, onSendToJoin }: { media: OpenedMedia; onQueue
   };
   const selectClip = (i: number) => { setActive(i); seek(clips[i].start); };
 
+  // Lagres litt etter siste endring. Forlater du Klipp før det, lagres det med en gang, så ingenting går tapt.
+  const unsaved = useRef<{ count: number; active: number; clips: Clip[] } | null>(null);
   useEffect(() => {
     if (!loaded.current) return;
-    const timer = setTimeout(() => { void api.saveProject(media.path, { count, active, clips }).catch(() => {}); }, 600);
+    unsaved.current = { count, active, clips };
+    const timer = setTimeout(() => {
+      unsaved.current = null;
+      void api.saveProject(media.path, { count, active, clips }).catch(() => {});
+    }, 600);
     return () => clearTimeout(timer);
   }, [clips, count, active, media.path]);
+  useEffect(() => () => {
+    if (unsaved.current) void api.saveProject(media.path, unsaved.current).catch(() => {});
+  }, [media.path]);
 
   const resetProject = async () => {
     await api.forgetProject(media.path).catch(() => {});

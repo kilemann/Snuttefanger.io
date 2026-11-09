@@ -25,8 +25,11 @@ export function sanitizeSettings(raw: Partial<Settings>, defaults: Settings): Se
     language: isLanguage(raw.language) ? raw.language : defaults.language,
     checkUpdates: typeof raw.checkUpdates === 'boolean' ? raw.checkUpdates : defaults.checkUpdates,
     dismissedVersion: str(raw.dismissedVersion, '').slice(0, 40),
-    quickMode: raw.quickMode === 'video' ? 'video' : defaults.quickMode,
-    quickOpenCut: typeof raw.quickOpenCut === 'boolean' ? raw.quickOpenCut : defaults.quickOpenCut,
+    // Mangler de nye mappene (oppgradering fra 0.8 eller eldre), brukes mappene som gjaldt før.
+    quickMp3Dir: str(raw.quickMp3Dir, '') || (typeof raw.downloadDir === 'string' && raw.downloadDir ? raw.downloadDir : defaults.quickMp3Dir),
+    cutDownloadDir: str(raw.cutDownloadDir, '') || (typeof raw.downloadDir === 'string' && raw.downloadDir ? raw.downloadDir : defaults.cutDownloadDir),
+    cutDownloadMode: raw.cutDownloadMode === 'video' || raw.cutDownloadMode === 'audio' ? raw.cutDownloadMode : defaults.cutDownloadMode,
+    joinDir: typeof raw.joinDir === 'string' ? raw.joinDir : str(raw.exportDir, defaults.joinDir),
   };
 }
 

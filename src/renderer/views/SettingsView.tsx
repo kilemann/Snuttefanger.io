@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { LANGUAGES, type Language, type TextKey } from '../../shared/i18n';
 import type { AudioFormat, InstallState, Quality, Settings, ToolName, ToolStatus, VideoContainer } from '../../shared/types';
 import { cleanError } from '../main';
+import { FolderRow } from './FolderRow';
 import { t, tm } from '../i18n';
 
 const api = window.snutt;
@@ -87,19 +88,11 @@ export function SettingsView({ settings, onChange, onToolsChanged }: { settings:
 
       <div className="section">
         <h2>{t('set.folders')}</h2>
-        <div className="row" style={{ marginBottom: 8 }}>
-          <label className="field grow">{t('set.downloads')}
-            <input type="text" value={settings.downloadDir} disabled />
-          </label>
-          <button className="btn" style={{ alignSelf: 'flex-end' }} onClick={async () => { const d = await api.pickFolder(settings.downloadDir); if (d) await save({ downloadDir: d }); }}>{t('set.chooseFolder')}</button>
-        </div>
-        <div className="row">
-          <label className="field grow">{t('set.clips')}
-            <input type="text" value={settings.exportDir || t('set.sameFolder')} disabled />
-          </label>
-          <button className="btn" style={{ alignSelf: 'flex-end' }} onClick={async () => { const d = await api.pickFolder(settings.exportDir); if (d) await save({ exportDir: d }); }}>{t('set.chooseFolder')}</button>
-          {settings.exportDir && <button className="btn" style={{ alignSelf: 'flex-end' }} onClick={() => save({ exportDir: '' })}>{t('set.useOriginal')}</button>}
-        </div>
+        <FolderRow label={t('set.quickDir')} value={settings.quickMp3Dir} onChange={(d) => save({ quickMp3Dir: d })} />
+        <FolderRow label={t('set.cutDownloadDir')} value={settings.cutDownloadDir} onChange={(d) => save({ cutDownloadDir: d })} />
+        <FolderRow label={t('set.downloads')} value={settings.downloadDir} onChange={(d) => save({ downloadDir: d })} />
+        <FolderRow label={t('set.clips')} value={settings.exportDir} emptyText={t('set.sameFolder')} resetText={t('set.useOriginal')} onChange={(d) => save({ exportDir: d })} />
+        <FolderRow label={t('set.joinDir')} value={settings.joinDir} emptyText={t('set.sameAsFirst')} resetText={t('set.useFirst')} onChange={(d) => save({ joinDir: d })} />
       </div>
 
       <div className="section">

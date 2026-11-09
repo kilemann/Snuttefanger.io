@@ -144,10 +144,14 @@ export interface Settings {
   checkUpdates: boolean;
   /** Versjonen brukeren har sagt Ikke nå til. */
   dismissedVersion: string;
-  /** Hurtig nedlasting: lyd som MP3, eller video i valgt filformat. */
-  quickMode: 'audio' | 'video';
-  /** Åpne filen i Klipp når hurtig nedlasting er ferdig. */
-  quickOpenCut: boolean;
+  /** Mappe for Hurtig MP3. */
+  quickMp3Dir: string;
+  /** Mappe for Last ned til Klipp. */
+  cutDownloadDir: string;
+  /** Last ned til Klipp: lyd som MP3, eller video i valgt filformat. */
+  cutDownloadMode: 'audio' | 'video';
+  /** Mappe for skjøtede filer. Tom betyr samme mappe som første fil. */
+  joinDir: string;
 }
 
 export interface UpdateInfo { latest: string; newer: boolean }

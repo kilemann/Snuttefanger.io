@@ -1,7 +1,7 @@
 {
   "name": "snuttefanger",
   "productName": "Snuttefanger",
-  "version": "0.8.0",
+  "version": "0.9.0",
   "description": "Download video and audio, and cut clips without losing quality.",
   "author": "kilemann",
   "license": "MIT",

@@ -4,6 +4,7 @@ import { AUDIO_TARGETS, type AudioTarget, type JoinEffects, type JoinRequest, ty
 import { cleanError } from '../main';
 import { formatTime } from '../format';
 import { getLanguage, t } from '../i18n';
+import { FolderRow } from './FolderRow';
 
 const api = window.snutt;
 const SPEEDS = [0.5, 0.75, 1, 1.25, 1.5, 2];
@@ -24,7 +25,9 @@ function describeAudio(info: MediaInfo): string {
 const effectsOn = (e: JoinEffects) => e.speeds.some((s) => s !== 1) || e.trimSilence || e.normalize || e.fadeIn > 0 || e.fadeOut > 0 || e.crossfade > 0;
 const speedLabel = (s: number) => `${getLanguage() === 'nb' ? String(s).replace('.', ',') : String(s)}x`;
 
-export function JoinView({ state, setState, onQueued, pending, failed }: { state: JoinState; setState(f: (old: JoinState) => JoinState): void; onQueued(): void; pending: number; failed: number }) {
+export function JoinView({ state, setState, onQueued, pending, failed, joinDir, onJoinDir }: {
+  state: JoinState; setState(f: (old: JoinState) => JoinState): void; onQueued(): void; pending: number; failed: number; joinDir: string; onJoinDir(dir: string): void;
+}) {
   const { items } = state;
   // Hastigheten ligger på hver fil, så den følger med når rekkefølgen endres.
   const effects: JoinEffects = { ...state.effects, speeds: items.map((it) => it.speed ?? 1) };
@@ -183,6 +186,9 @@ export function JoinView({ state, setState, onQueued, pending, failed }: { state
           </div>
 
           <div className="section">
+            <div style={{ marginBottom: 10 }}>
+              <FolderRow label={t('dl.quickFolder')} value={joinDir} emptyText={t('set.sameAsFirst')} resetText={t('set.useFirst')} onChange={onJoinDir} />
+            </div>
             <div className="row end">
               <label className="field">{t('join.format')}
                 <select aria-label={t('join.format')} value={chosen} onChange={(e) => setState((s) => ({ ...s, format: e.target.value as AudioTarget }))}>
