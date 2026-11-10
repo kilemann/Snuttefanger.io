@@ -37,14 +37,22 @@ const assert = require('node:assert/strict');
   await page.getByText('Snuttefanger v9.9.9 is available.').waitFor({ state: 'detached' });
 
   // Nedlasting via GUI
+  // Mapper velges bare under Innstillinger
+  const setFolder = async (label, dir) => {
+    await app.evaluate(({ dialog }, d) => { dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [d] }); }, dir);
+    await page.getByRole('button', { name: 'Settings', exact: true }).click();
+    const row = page.locator('.folder-row', { hasText: label });
+    await row.getByRole('button', { name: 'Choose folder' }).click();
+    await row.locator('.folder-path', { hasText: dir }).waitFor();
+  };
+  await setFolder('Normal download', join(root, 'ned'));
+  await page.getByRole('button', { name: 'Download', exact: true }).first().click();
+  await page.locator('.dl-custom .folder-info code', { hasText: join(root, 'ned') }).waitFor();
+  assert.equal(await page.locator('.dl-card').getByRole('button', { name: 'Choose folder' }).count(), 0, 'ingen mappevalg i Last ned');
   await page.getByLabel('Web address').fill(url);
   await page.getByRole('button', { name: 'Get info' }).click();
   await page.locator('button.primary', { hasText: /^Download$/ }).waitFor({ timeout: 60000 });
   await page.screenshot({ path: join(shots, '1-last-ned.png') });
-  await app.evaluate(async ({ dialog }, dir) => { dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [dir] }); }, join(root, 'ned'));
-  // Nederste Velg mappe hører til vanlig nedlasting. Den øverste hører til Hurtig MP3.
-  await page.getByRole('button', { name: 'Choose folder' }).last().click();
-  await page.waitForFunction((d) => document.querySelector('code[aria-label="Save to"]').textContent === d, join(root, 'ned'));
   await page.locator('button.primary', { hasText: /^Download$/ }).click();
   await page.locator('.job[data-status=done]').waitFor({ timeout: 90000 });
   await page.screenshot({ path: join(shots, '2-ko.png') });
@@ -96,6 +104,8 @@ const assert = require('node:assert/strict');
   await setClip(3, '00:00:12', '00:00:18');
   // Klipp 2 og 3 som bare lyd
   await page.getByLabel('Export clip 2').selectOption('audio');
+  assert.equal(await page.getByLabel('Audio format clip 2').inputValue(), 'mp3', 'MP3 er førstevalg for bare lyd');
+  await page.getByLabel('Audio format clip 2').selectOption('original');
   await page.getByLabel('Export clip 3').selectOption('audio');
   await page.getByLabel('Audio format clip 3').selectOption('mp3');
   await page.locator('h1').first().click();
@@ -148,9 +158,9 @@ const assert = require('node:assert/strict');
   assert.ok(Math.abs(previewLength - 7.5) < 0.2, `forhåndsvisning ${previewLength}`);
   await page.screenshot({ path: join(shots, '12-skjot-effekter.png') });
   const joinDir = join(root, 'skjøtet');
-  await app.evaluate(({ dialog }, d) => { dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [d] }); }, joinDir);
-  await page.locator('.folder-row').getByRole('button', { name: 'Choose folder' }).click();
-  await page.locator('.folder-path', { hasText: joinDir }).waitFor();
+  await setFolder('Joined files', joinDir);
+  await page.getByRole('button', { name: 'Join', exact: true }).click();
+  await page.locator('.folder-info code', { hasText: joinDir }).waitFor();
   await page.getByRole('button', { name: 'Join 2 files' }).click();
   await page.waitForFunction(() => document.querySelectorAll('.job[data-status=done]').length === 5, null, { timeout: 40000 });
   const joined = readdirSync(joinDir).filter((f) => f.includes('(joined)'));
@@ -182,9 +192,9 @@ const assert = require('node:assert/strict');
   await page.screenshot({ path: join(shots, '13-navn.png') });
   await page.getByRole('button', { name: 'Export and add to Join' }).click();
   await page.getByRole('heading', { name: 'Join audio' }).waitFor();
-  await page.waitForFunction(() => [...document.querySelectorAll('.join-name')].some((n) => n.textContent.includes('Del B.m4a')), null, { timeout: 30000 });
+  await page.waitForFunction(() => [...document.querySelectorAll('.join-name')].some((n) => n.textContent.includes('Del B.mp3')), null, { timeout: 30000 });
   const names = await page.locator('.join-name > div:first-child').allInnerTexts();
-  assert.deepEqual(names.slice(-2), ['Del A «intro».m4a', 'Del B.m4a'], names.join(' | '));
+  assert.deepEqual(names.slice(-2), ['Del A «intro».mp3', 'Del B.mp3'], names.join(' | '));
   await page.screenshot({ path: join(shots, '14-til-skjot.png') });
   await page.getByRole('button', { name: 'Cut', exact: true }).click();
   // Tilbake til den første filen: de tre klippene er husket
@@ -194,7 +204,7 @@ const assert = require('node:assert/strict');
   assert.equal(await page.getByLabel('Number of clips').inputValue(), '3');
   assert.equal(await page.getByRole('textbox', { name: 'Start clip 3' }).inputValue(), '00:00:12.000');
 
-  await page.getByRole('button', { name: 'Settings' }).click();
+  await page.getByRole('button', { name: 'Settings', exact: true }).click();
   await page.getByRole('heading', { name: 'Tools' }).waitFor();
   await page.waitForTimeout(1500);
   await page.screenshot({ path: join(shots, '5-innstillinger.png') });
@@ -203,14 +213,11 @@ const assert = require('node:assert/strict');
   // 1. Hurtig MP3: lim inn lenken, og lyden lastes ned som MP3 til sin egen mappe uten flere klikk
   const quickDir = join(root, 'hurtig');
   const cutDir = join(root, 'til klipp');
-  const pickDir = (d) => app.evaluate(({ dialog }, dir) => { dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [dir] }); }, d);
+  await setFolder('Quick MP3', quickDir);
+  await setFolder('Download to Cut', cutDir);
   await page.getByRole('button', { name: 'Download', exact: true }).first().click();
-  await pickDir(quickDir);
-  await page.locator('.quick').nth(0).getByRole('button', { name: 'Choose folder' }).click();
-  await page.locator('.quick').nth(0).locator('.folder-path', { hasText: quickDir }).waitFor();
-  await pickDir(cutDir);
-  await page.locator('.quick').nth(1).getByRole('button', { name: 'Choose folder' }).click();
-  await page.locator('.quick').nth(1).locator('.folder-path', { hasText: cutDir }).waitFor();
+  await page.locator('.dl-mp3 .folder-info code', { hasText: quickDir }).waitFor();
+  await page.locator('.dl-cut .folder-info code', { hasText: cutDir }).waitFor();
   await page.getByLabel('Link for quick MP3').evaluate((el, l) => {
     const dt = new DataTransfer();
     dt.setData('text/plain', l);
@@ -235,10 +242,10 @@ const assert = require('node:assert/strict');
   assert.ok(!readdirSync(quickDir).some((f) => f.endsWith('.mp4')), 'og ikke i Hurtig MP3-mappen');
 
   // Alle mappene står under Innstillinger
-  await page.getByRole('button', { name: 'Settings' }).click();
+  await page.getByRole('button', { name: 'Settings', exact: true }).click();
   for (const d of [quickDir, cutDir, join(root, 'ned'), joinDir]) await page.locator('.folder-path', { hasText: d }).first().waitFor();
   await page.screenshot({ path: join(shots, '16-mapper.png') });
-  await page.getByRole('button', { name: 'Settings' }).click();
+  await page.getByRole('button', { name: 'Settings', exact: true }).click();
 
   // Bytt til norsk: menyen, køen og hjelpen følger med, også meldinger som allerede finnes
   await page.getByLabel('Language').selectOption('nb');

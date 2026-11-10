@@ -21,6 +21,8 @@ function describe(s: MediaStream): string {
 }
 
 const MAX_CLIPS = 10;
+/** MP3 står først i valglisten for lydklipp. */
+const CLIP_TARGETS: AudioTarget[] = ['mp3', ...AUDIO_TARGETS.filter((f) => f !== 'mp3')];
 const MIN_SPAN = 1;
 
 /** Tegner bølgeformen for synlig del av tidslinjen. Høyeste topp per skjermpiksel, speilet rundt midten. */
@@ -361,7 +363,9 @@ function Cutter({ media, onQueued, onSendToJoin }: { media: OpenedMedia; onQueue
         {wave && <WaveCanvas wave={wave} viewStart={view.start} viewSpan={view.span} />}
         {visible.map((c, i) => (
           <div key={i} className={`strip-sel ${i === active ? 'active' : ''}`} style={{ left: pct(c.start), width: `calc(${pct(c.end)} - ${pct(c.start)})`, zIndex: i === active ? 2 : 1 }}>
-            {count > 1 ? i + 1 : ''}{canChoose && c.mode === 'audio' ? ' ♪' : ''}{isAudioClip(c) && c.fmt !== 'original' ? ` ${c.fmt.toUpperCase()}` : ''}
+            {(count > 1 || (canChoose && c.mode === 'audio') || (isAudioClip(c) && c.fmt !== 'original')) && (
+              <span className="strip-num">{count > 1 ? i + 1 : ''}{canChoose && c.mode === 'audio' ? ' ♪' : ''}{isAudioClip(c) && c.fmt !== 'original' ? ` ${c.fmt.toUpperCase()}` : ''}</span>
+            )}
           </div>
         ))}
         <div className="strip-head" style={{ left: pct(time), zIndex: 3 }} />
@@ -419,7 +423,12 @@ function Cutter({ media, onQueued, onSendToJoin }: { media: OpenedMedia; onQueue
             <div className="num small muted">{formatTime(c.end - c.start)}</div>
             {canChoose && (
               <select aria-label={t('cut.modeN', { n: String(i + 1) })} value={c.mode} onFocus={() => setActive(i)}
-                onChange={(e) => { record(); update(i, (old) => ({ ...old, mode: e.target.value as CutMode })); }}>
+                onChange={(e) => {
+                  record();
+                  const mode = e.target.value as CutMode;
+                  // Bare lyd: MP3 er førstevalget, men et format du har valgt selv beholdes.
+                  update(i, (old) => ({ ...old, mode, fmt: mode === 'audio' && old.fmt === 'original' ? 'mp3' : old.fmt }));
+                }}>
                 <option value="av">{t('cut.av')}</option>
                 <option value="audio">{t('cut.audio')}</option>
               </select>
@@ -427,7 +436,7 @@ function Cutter({ media, onQueued, onSendToJoin }: { media: OpenedMedia; onQueue
             {formatColumn && (isAudioClip(c) ? (
               <select aria-label={t('cut.formatN', { n: String(i + 1) })} value={c.fmt} onFocus={() => setActive(i)}
                 onChange={(e) => { record(); update(i, (old) => ({ ...old, fmt: e.target.value as AudioTarget })); }}>
-                {AUDIO_TARGETS.map((f) => <option key={f} value={f}>{f === 'original' ? t('cut.original') : f.toUpperCase()}</option>)}
+                {CLIP_TARGETS.map((f) => <option key={f} value={f}>{f === 'original' ? t('cut.original') : f.toUpperCase()}</option>)}
               </select>
             ) : <div />)}
           </div>

@@ -20,7 +20,7 @@ const CONTENT: Record<Language, Content> = {
       ['Cutting', [
         'Open a file under Cut, drop a file on the window, or select Open in cutter under Queue.',
         'Choose the number of clips, from 1 to 10. Each clip becomes its own file.',
-        'Choose Video and audio or Audio only for each clip. Audio only copies the first audio track without re-encoding.',
+        'Choose Video and audio or Audio only for each clip. Audio only uses the first audio track and is saved as MP3 unless you choose another format.',
         'For audio clips, choose the audio format. Original keeps the audio unchanged. MP3, M4A and Opus play almost everywhere, but cost a little quality.',
         'Select the clip you are working on, and set start and end with the buttons, the keys or the strip.',
         'The waveform shows where there is sound. Zoom with the + and − buttons or Ctrl + scroll wheel. Snap to silence moves start and end to the quietest point nearby.',
@@ -53,6 +53,7 @@ const CONTENT: Record<Language, Content> = {
     ],
     versionsTitle: 'Versions',
     versions: [
+      ['v0.10.0', 'Folders are chosen under Settings only. Clearer download parts, with Custom download as the new name. Clearer clip lines and numbers. MP3 is chosen first for audio clips.'],
       ['v0.9.0', 'Download has three parts: Quick MP3, Download to Cut and normal download, each with its own folder. Join has its own folder.'],
       ['v0.8.0', 'Quick download as MP3 or video, with Open in Cut when the download is done.'],
       ['v0.7.1', 'Quick MP3: paste a link and the audio is downloaded as MP3 right away.'],
@@ -81,7 +82,7 @@ const CONTENT: Record<Language, Content> = {
       ['Slik klipper du', [
         'Åpne en fil under Klipp, slipp en fil i vinduet, eller velg Åpne i klipperen under Kø.',
         'Velg antall klipp, fra 1 til 10. Hvert klipp blir en egen fil.',
-        'Velg Video og lyd eller Bare lyd for hvert klipp. Bare lyd kopierer første lydspor uten omkoding.',
+        'Velg Video og lyd eller Bare lyd for hvert klipp. Bare lyd bruker første lydspor og lagres som MP3, med mindre du velger et annet format.',
         'For lydklipp velger du lydformat. Original beholder lyden uendret. MP3, M4A og Opus spilles nesten overalt, men koster litt kvalitet.',
         'Merk hvilket klipp du jobber med, og sett start og slutt med knappene, tastene eller stripen.',
         'Bølgeformen viser hvor det er lyd. Zoom med knappene + og − eller Ctrl + musehjul. Fest til stillhet flytter start og slutt til det stilleste punktet i nærheten.',
@@ -114,6 +115,7 @@ const CONTENT: Record<Language, Content> = {
     ],
     versionsTitle: 'Versjoner',
     versions: [
+      ['v0.10.0', 'Mapper velges bare under Innstillinger. Tydeligere deler i Last ned, med Tilpasset nedlasting som nytt navn. Tydeligere streker og tall i Klipp. MP3 er førstevalg for lydklipp.'],
       ['v0.9.0', 'Last ned har tre deler: Hurtig MP3, Last ned til Klipp og vanlig nedlasting, hver med sin egen mappe. Skjøt har egen mappe.'],
       ['v0.8.0', 'Hurtig nedlasting som MP3 eller video, med Åpne i Klipp når nedlastingen er ferdig.'],
       ['v0.7.1', 'Hurtig MP3: lim inn en lenke, så lastes lyden ned som MP3 med en gang.'],

@@ -2,6 +2,14 @@
 
 The project uses [semantic versioning](https://semver.org/).
 
+## 0.10.0 (2026-11-10)
+
+### Changed
+- Folders are chosen under Settings only. Download and Join show where the files are saved, with a link to Settings.
+- The three parts of Download are separate cards with their own colour and a short description. Choose quality and format is now called Custom download.
+- Start and end lines in the Cut strip are thicker, and the clip number is shown as a clear badge.
+- When a clip is set to Audio only, MP3 is chosen first and listed first. Original is still available.
+
 ## 0.9.0 (2026-11-09)
 
 ### Changed

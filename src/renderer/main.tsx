@@ -147,10 +147,10 @@ function App() {
             <button className="btn primary" onClick={() => setView('settings')}>{t('app.goToTools')}</button>
           </div>
         )}
-        {view === 'download' && <DownloadView settings={settings} onQueued={() => setView('queue')} onSettings={setSettings} onOpenWhenDone={(id) => setOpenWhenDone((old) => [...old, id])} />}
+        {view === 'download' && <DownloadView settings={settings} onQueued={() => setView('queue')} onSettings={setSettings} onOpenWhenDone={(id) => setOpenWhenDone((old) => [...old, id])} onGoSettings={() => setView('settings')} />}
         {view === 'editor' && <EditorView media={media} error={mediaError} onOpen={openMedia} onQueued={() => setView('queue')} onSendToJoin={sendToJoin} />}
         {view === 'join' && <JoinView state={joinState} setState={setJoinState} onQueued={() => setView('queue')} pending={pendingJoin.length} failed={joinFailed}
-          joinDir={settings.joinDir} onJoinDir={async (d) => { setSettings({ ...settings, joinDir: d }); setSettings(await api.saveSettings({ joinDir: d })); }} />}
+          joinDir={settings.joinDir} onGoSettings={() => setView('settings')} />}
         {view === 'queue' && <QueueView jobs={jobs} onOpen={openMedia} onAddToJoin={addToJoin} joinPaths={joinItems.map((it) => it.path)} />}
         {view === 'settings' && <SettingsView settings={settings} onChange={setSettings} onToolsChanged={refreshTools} />}
       </main>

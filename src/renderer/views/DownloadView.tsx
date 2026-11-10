@@ -3,13 +3,21 @@ import type { AudioFormat, Quality, Settings, UrlInfo, VideoContainer } from '..
 import { cleanError } from '../main';
 import { formatTime } from '../format';
 import { t } from '../i18n';
-import { FolderRow } from './FolderRow';
 
 const api = window.snutt;
 const QUALITIES: Exclude<Quality, 'best'>[] = [2160, 1440, 1080, 720, 480];
 const AUDIO: AudioFormat[] = ['mp3', 'm4a', 'opus', 'aac', 'flac', 'wav'];
 
-export function DownloadView({ settings, onQueued, onSettings, onOpenWhenDone }: { settings: Settings; onQueued(): void; onSettings(s: Settings): void; onOpenWhenDone(id: string): void }) {
+/** Viser hvor filene lagres. Mappene endres under Innstillinger. */
+function SavedIn({ path, onGoSettings }: { path: string; onGoSettings(): void }) {
+  return (
+    <p className="muted small folder-info">
+      {t('dl.quickFolder')} <code>{path}</code>. <button className="linkbtn" onClick={onGoSettings}>{t('dl.changeInSettings')}</button>
+    </p>
+  );
+}
+
+export function DownloadView({ settings, onQueued, onSettings, onOpenWhenDone, onGoSettings }: { settings: Settings; onQueued(): void; onSettings(s: Settings): void; onOpenWhenDone(id: string): void; onGoSettings(): void }) {
   // Valg som lagres vises med en gang, og lagres etterpå.
   const save = async (patch: Partial<Settings>) => {
     onSettings({ ...settings, ...patch });
@@ -87,8 +95,9 @@ export function DownloadView({ settings, onQueued, onSettings, onOpenWhenDone }:
     <div className="narrow">
       <h1>{t('dl.title')}</h1>
 
-      <section className="quick" aria-labelledby="quick-title">
+      <section className="quick dl-card dl-mp3" aria-labelledby="quick-title">
         <h2 id="quick-title">{t('dl.quickTitle')}</h2>
+        <p className="muted small dl-desc">{t('dl.quickDesc')}</p>
         <input className="quick-input" type="url" aria-label={t('dl.quickLabel')} placeholder={t('dl.quickPlaceholder')} value={quick}
           onChange={(e) => { setQuick(e.target.value); setQuickError(null); }}
           onPaste={(e) => {
@@ -100,12 +109,12 @@ export function DownloadView({ settings, onQueued, onSettings, onOpenWhenDone }:
           onKeyDown={(e) => { if (e.key === 'Enter') void startQuick(quick); }} />
         {quickError && <p className="error small" role="alert" style={{ marginTop: 8 }}>{quickError}</p>}
         {quickDone.map((u, i) => <p key={`${u}-${i}`} className="ok small quick-done">{t('dl.quickStarted', { url: u })}</p>)}
-        <FolderRow label={t('dl.quickFolder')} value={settings.quickMp3Dir} onChange={(d) => save({ quickMp3Dir: d })} />
-        <p className="muted small" style={{ marginTop: 6 }}>{t('dl.quickHint')}</p>
+        <SavedIn path={settings.quickMp3Dir} onGoSettings={onGoSettings} />
       </section>
 
-      <section className="quick" aria-labelledby="cut-title">
+      <section className="quick dl-card dl-cut" aria-labelledby="cut-title">
         <h2 id="cut-title">{t('dl.cutTitle')}</h2>
+        <p className="muted small dl-desc">{t('dl.cutHint')}</p>
         <form className="row" onSubmit={(e) => { e.preventDefault(); void startCut(); }}>
           <input className="grow" type="url" aria-label={t('dl.cutLabel')} placeholder={t('dl.cutPlaceholder')} value={cutUrl}
             onChange={(e) => { setCutUrl(e.target.value); setCutError(null); }} />
@@ -117,11 +126,12 @@ export function DownloadView({ settings, onQueued, onSettings, onOpenWhenDone }:
         </form>
         {cutError && <p className="error small" role="alert" style={{ marginTop: 8 }}>{cutError}</p>}
         {cutDone && <p className="ok small quick-done">{t('dl.cutStarted', { url: cutDone })}</p>}
-        <FolderRow label={t('dl.quickFolder')} value={settings.cutDownloadDir} onChange={(d) => save({ cutDownloadDir: d })} />
-        <p className="muted small" style={{ marginTop: 6 }}>{t('dl.cutHint')}</p>
+        <SavedIn path={settings.cutDownloadDir} onGoSettings={onGoSettings} />
       </section>
 
-      <h2>{t('dl.normal')}</h2>
+      <section className="quick dl-card dl-custom" aria-labelledby="custom-title">
+      <h2 id="custom-title">{t('dl.normal')}</h2>
+      <p className="muted small dl-desc">{t('dl.normalDesc')}</p>
       <form className="row" onSubmit={(e) => { e.preventDefault(); void fetchInfo(); }}>
         <input className="grow" type="url" aria-label={t('dl.address')} placeholder={t('dl.placeholder')} value={url}
           onChange={(e) => { setUrl(e.target.value); setInfo(null); }} />
@@ -157,9 +167,7 @@ export function DownloadView({ settings, onQueued, onSettings, onOpenWhenDone }:
         )}
       </div>
       {mode === 'audio' && <p className="muted small" style={{ marginTop: 10 }}>{audioNote}</p>}
-      <div style={{ marginTop: 12 }}>
-        <FolderRow label={t('dl.saveTo')} value={settings.downloadDir} onChange={(d) => save({ downloadDir: d })} />
-      </div>
+      <SavedIn path={settings.downloadDir} onGoSettings={onGoSettings} />
       {error && <p className="error" role="alert" style={{ marginTop: 12 }}>{error}</p>}
       {info && (
         <>
@@ -175,7 +183,8 @@ export function DownloadView({ settings, onQueued, onSettings, onOpenWhenDone }:
           </div>
         </>
       )}
-      {!info && !error && !busy && <p className="muted" style={{ marginTop: 16 }}>{t('dl.hint')}</p>}
+      {!info && !error && !busy && <p className="muted small" style={{ marginTop: 10 }}>{t('dl.hint')}</p>}
+      </section>
     </div>
   );
 }
