@@ -11,7 +11,7 @@ const { tmpdir } = require('node:os');
   const page = await app.firstWindow();
   page.on('console', (m) => console.log('konsoll:', m.type(), m.text()));
   page.on('pageerror', (e) => console.log('sidefeil:', e.message));
-  await page.getByRole('button', { name: 'Settings' }).click();
+  await page.getByRole('button', { name: 'Settings', exact: true }).click();
   await page.getByRole('heading', { name: 'Tools' }).waitFor();
   const button = page.getByRole('button', { name: 'Install missing tools' });
   const report = async (label) => {
