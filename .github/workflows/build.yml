@@ -34,8 +34,12 @@ jobs:
           if (-not (Test-Path $exe)) { throw "Fant ikke $exe etter installasjon" }
           if (-not (Test-Path (Join-Path ([Environment]::GetFolderPath('Desktop')) 'Snuttefanger.lnk'))) { throw 'Snarveien på skrivebordet mangler' }
           node tests/e2e-win.cjs $exe
+      # Ingen kopi under Actions for bygg på main eller versjonstagg: installasjonsfil og ZIP ligger under Releases.
+      # Andre bygg (manuell kjøring på annen gren) får en kopi i 3 dager.
       - uses: actions/upload-artifact@v4
+        if: ${{ github.ref != 'refs/heads/main' && !startsWith(github.ref, 'refs/tags/v') }}
         with:
+          retention-days: 3
           name: Snuttefanger-windows
           path: |
             release/Snuttefanger-Setup-*.exe
@@ -46,6 +50,7 @@ jobs:
         with:
           name: package-lock
           path: package-lock.json
+          retention-days: 7
       # Hver ny versjon i package.json blir en release automatisk. Finnes den fra før, røres den ikke.
       - name: Publiser release
         if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')

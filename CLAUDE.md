@@ -8,6 +8,7 @@ Kode i `src/main`, `src/preload`, `src/renderer`, `src/shared`. Spesifikasjon i 
 - Lever rett på `main` når resultatet er godt nok og testene er grønne. Kjør `git fetch origin main` og rebase før push.
 - Testdrevet utvikling (TDD) bare når brukeren ber om det. Eksisterende tester kjøres alltid før push.
 - Tekniske påstander skal sjekkes mot dokumentasjon eller kilde, ikke gjettes.
+- Lagre ikke ferdigbygde filer (exe, zip, installasjonsfil) som byggefiler under GitHub Actions når bygget også blir en release. Andre byggefiler får kort lagring (`retention-days`).
 - Nedlastingssiden (`index.html`) står på samlesida (kilemann.github.io). Både den og appen skal vise navn, versjon og en (i)-knapp øverst til venstre, med bruksanvisning og versjonsliste i info-vinduet.
 - Nedlastingssiden publiseres med GitHub Pages fra `main`.
 - README og spesifikasjon er på engelsk. Tekster i appen finnes på engelsk og norsk (`src/shared/i18n.ts`, `src/renderer/i18n.ts`).
